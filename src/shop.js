@@ -38,7 +38,7 @@
       if(!item || !Number.isSafeInteger(item.id) || item.id<1 || seen.has(item.id) || !TYPES[item.type] || !GRADES[item.grade]) throw Error('在庫データが不正です。');
       seen.add(item.id);integer(item.cost,'原価',1,1000000);integer(item.price,'販売価格',1,1000000);integer(item.fair,'目利き評価額',1,1000000);
     }
-    for(const h of input.history){ if(!h || !Number.isSafeInteger(h.day) || !Number.isSafeInteger(h.profit) || !Number.isSafeInteger(h.cash)) throw Error('履歴が不正です。'); }
+    let countedSold=0;for(let i=0;i<input.history.length;i++){const h=input.history[i];if(!h||h.day!==i+1||!Number.isSafeInteger(h.profit)||!Number.isSafeInteger(h.cash)||h.cash<0||!Number.isSafeInteger(h.sold)||h.sold<0)throw Error('履歴が不正です。');countedSold+=h.sold;}if(input.totalSold!==countedSold)throw Error('累計販売数と履歴が一致しません。');
     return JSON.parse(JSON.stringify(input));
   }
   function offers(state) {
