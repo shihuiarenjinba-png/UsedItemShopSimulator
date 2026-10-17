@@ -1,0 +1,63 @@
+/* Used Item Shop: one-screen, three-step offline interface. */
+(function(){'use strict';
+ const E=window.UsedItemShop,$=id=>document.getElementById(id),KEY='used-item-shop:save:v1';
+ let state,notice='',recoveryBlocked=false,originalRaw=null,lastReport=null;
+ const yen=x=>'¥'+Math.round(x).toLocaleString('ja-JP');
+ const el=(tag,klass,text)=>{const a=document.createElement(tag);if(klass)a.className=klass;if(text!==undefined)a.textContent=text;return a};
+ function load(){let raw=null;try{raw=localStorage.getItem(KEY);if(!raw)return E.initial();return E.validate(JSON.parse(raw));}
+   catch(error){recoveryBlocked=true;originalRaw=raw;notice='保存済みのデータを確認できませんでした。元のセーブは保持しています。';return E.initial();}}
+ function persist(){if(recoveryBlocked)return false;try{localStorage.setItem(KEY,JSON.stringify(state));return true;}catch(error){notice='自動保存できませんでした。セーブ書き出しをご利用ください。';return false;}}
+ function field(type,label,value,min=1,max=1000000){const wrap=el('label','',label),input=el('input');input.type='number';input.min=String(min);input.max=String(max);input.step='100';input.value=String(value);input.dataset.type=type;wrap.append(input);return {wrap,input};}
+ function renderOffers(){const container=$('offers');container.replaceChildren();
+   for(const item of E.offers(state)){
+     const box=el('div','offer');box.append(el('h3','',item.name),el('div','grade','状態 '+item.grade));
+     box.append(el('div','hint','売り手の希望額 '+yen(item.ask)));
+     box.append(el('div','hint','目利きの評価目安 '+yen(item.fair)));
+     const price=field('price','店頭で売る値段',item.defaultPrice);price.input.dataset.offerPrice=String(item.id);box.append(price.wrap);
+     const label=el('label','toggle'),check=el('input');check.type='checkbox';check.dataset.offerId=String(item.id);label.append(check,document.createTextNode(' この商品を買い取る'));box.append(label);container.append(box);
+   }
+ }
+ function renderInventory(){const root=$('inventory');root.replaceChildren();if(!state.inventory.length){root.append(el('p','hint','まだ在庫がありません。商品を買い取って販売を始めましょう。'));return;}
+   const table=el('table'),head=el('thead'),tr=el('tr');for(const h of ['商品','状態','仕入原価','現在の販売価格','売れやすさの目安'])tr.append(el('th','',h));head.append(tr);table.append(head);
+   const body=el('tbody');for(const p of state.inventory){const row=el('tr');row.append(el('td','',E.TYPES[p.type].name),el('td','',p.grade),el('td','',yen(p.cost)));
+     const inp=field('price','',p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
+     const score=E.saleChance(p.type,p.grade,p.price,p.fair,state.day,state.reputation);row.append(el('td','hint',score>.62?'売れやすい':score>.3?'標準':'じっくり待つ価格'));body.append(row);
+   }table.append(body);root.append(table);
+ }
+ function plan(){const buy=[],prices=[];for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){const id=Number(check.dataset.offerId);buy.push({id,price:Number(document.querySelector('[data-offer-price="'+id+'"]').value)});}
+   for(const input of document.querySelectorAll('[data-stock-price]'))prices.push({id:Number(input.dataset.stockPrice),price:Number(input.value)});
+   return {buy,prices};}
+ function refreshBudget(){const box=$('budget');box.className='budget';if(recoveryBlocked){box.classList.add('error');box.textContent='元のセーブの保護中です。セーブ管理から退避するか、新規開始してください。';$('openBtn').disabled=true;return;}
+   try{const p=plan(),list=E.offers(state),total=p.buy.reduce((sum,item)=>{if(!Number.isSafeInteger(item.price)||item.price<1||item.price>1e6)throw Error('販売価格は1〜100万円で指定してください。');return sum+list.find(o=>o.id===item.id).ask;},0);
+     for(const price of p.prices)if(!Number.isSafeInteger(price.price)||price.price<1||price.price>1e6)throw Error('販売価格は1〜100万円で指定してください。');
+     const remaining=state.cash-total-E.RENT;
+     if(state.inventory.length+p.buy.length>E.CAPACITY)throw Error('店の在庫スペースが足りません。');
+     if(remaining<0)throw Error('今の仕入れ計画では家賃が払えません。');
+     box.textContent='仕入れ費用 '+yen(total)+' ＋ 家賃 '+yen(E.RENT)+' ｜ 営業開始時に残る資金 '+yen(remaining)+'。'+(notice||' 買い取り品を選んで一日営業しましょう。');
+     $('openBtn').disabled=state.day>180;
+   }catch(error){box.classList.add('error');box.textContent=error.message;$('openBtn').disabled=true;}
+ }
+ function renderStats(){$('day').textContent=state.day>180?'完走':state.day+'日目';$('cash').textContent=yen(state.cash);$('stock').textContent=state.inventory.length+' / '+E.CAPACITY+'点';$('sold').textContent=state.totalSold+'点 ｜ 評判 '+state.reputation;}
+ function renderReport(){const root=$('report');root.replaceChildren();if(!lastReport){root.append(el('p','hint','営業後に、売れた品物・利益・売れ残りをここに表示します。'));return;}
+   const fields=[['今日の売上',yen(lastReport.revenue)],['今日の利益',yen(lastReport.profit)],['売れた商品',lastReport.sold+'点'],['残った在庫',lastReport.inventory+'点']];
+   const grid=el('div','report-grid');for(const [label,value]of fields){const box=el('div');box.append(el('div','hint',label),el('strong','',value));grid.append(box);}root.append(grid);
+   const sold=lastReport.soldItems;
+   const story=lastReport.sold>=2?'買い手が集まり、お店の評判が少しずつ高まっています。':lastReport.sold===1?'一点売れました。良い買い取り品を探してみましょう。':'売れ残りを抱えた一日。値段と在庫を見直すのが次の勝負です。';
+   root.append(el('p','hint',story));
+   root.append(el('p','',sold.length?'売れた品：'+sold.map(x=>x.name+' '+yen(x.price)).join('、'):'今日は売れた商品がありません。価格や仕入れ品を見直しましょう。'));
+ }
+ function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
+ function refresh(){renderStats();renderOffers();renderInventory();renderReport();renderHistory();refreshBudget();}
+ function run(){try{const output=E.advance(state,plan());state=output.state;lastReport=output.report;notice=output.report.sold?'販売できました。次は仕入れと在庫のバランスを考えましょう。':'今日は販売ゼロ。過剰在庫に注意しましょう。';persist();refresh();$('report').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(error){notice=error.message;refreshBudget();}}
+ function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;state=next;recoveryBlocked=false;originalRaw=null;lastReport=null;notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
+ function init(){state=load();if(!recoveryBlocked)persist();refresh();
+   document.addEventListener('input',event=>{if(event.target.matches('input'))refreshBudget();});
+   document.addEventListener('change',event=>{if(event.target.matches('input'))refreshBudget();});
+   $('openBtn').addEventListener('click',()=>{if(!recoveryBlocked)run();});
+   $('resetBtn').addEventListener('click',()=>{if(!confirm(recoveryBlocked?'壊れたセーブを上書きして新規開始します。先に元データを退避しましたか？':'現在のデータを上書きして初めから始めます。よろしいですか？'))return;recoveryBlocked=false;originalRaw=null;state=E.initial();lastReport=null;notice='';persist();refresh();});
+   $('exportBtn').addEventListener('click',()=>download(recoveryBlocked?'used-shop-unreadable-original.json':'used-shop-day-'+state.day+'.json',recoveryBlocked&&originalRaw!==null?originalRaw:JSON.stringify({schema:E.VERSION,state},null,2)));
+   $('importBtn').addEventListener('click',()=>$('importFile').click());$('importFile').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';void importSave(file);});
+ }
+ document.addEventListener('DOMContentLoaded',init);
+})();
