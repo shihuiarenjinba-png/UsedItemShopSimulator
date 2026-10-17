@@ -1,0 +1,19 @@
+name: Game source tests
+on:
+  push:
+    branches: ["feature/**"]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run deterministic simulation and UI source tests
+        run: npm test
