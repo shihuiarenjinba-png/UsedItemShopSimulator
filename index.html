@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self';style-src 'self';connect-src 'none';img-src 'self' data:;object-src 'none';base-uri 'none'">
+<title>中古品店 — 小さな店から始める経営</title>
+<link rel="stylesheet" href="./style.css">
+<script defer src="./src/shop.js"></script><script defer src="./src/app.js"></script>
+</head>
+<body>
+<main class="shell">
+<header><div><p class="eyebrow">USED ITEM SHOP SIMULATOR</p><h1>売るものを選ぶ。<br><span>値段を決める。店を育てる。</span></h1><p>仕入れが安くても、高く売りすぎるとお客さんが来ない。今日の一手が、明日の店を変える。</p></div><span class="version">OFFLINE / 開発版</span></header>
+<section class="dashboard" aria-label="店舗の状況">
+<div><small>営業日</small><strong id="day">1日目</strong></div><div><small>現金残高</small><strong id="cash">—</strong></div>
+<div><small>在庫</small><strong id="stock">—</strong></div><div><small>累計販売・評判</small><strong id="sold">—</strong></div></section>
+<section class="stage">
+<div class="step"><span class="index">1</span><div><h2>今日の持ち込み商品</h2><p>買い取る品を選び、店頭で販売する値段を決める。</p></div></div>
+<div id="offers" class="offers"></div></section>
+<section class="stage"><div class="step"><span class="index">2</span><div><h2>店頭の在庫と値付け</h2><p>売れ残った商品も、販売価格を変更できる。</p></div></div><div id="inventory" class="scroll-table"></div></section>
+<section class="stage open-day"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>販売結果を見て、次の日の仕入れと価格を考えよう。</p></div></div>
+<p id="budget" class="budget" role="status"></p><button class="primary" id="openBtn">この計画で1日営業する →</button></section>
+<section class="stage" aria-labelledby="reportTitle"><h2 id="reportTitle">今日の結果</h2><div id="report"></div></section>
+<details class="extra"><summary>経営記録・セーブ管理（詳細）</summary><div class="extra-inner">
+<h2>直近12日の営業記録</h2><div id="history"></div>
+<div class="actions"><button id="exportBtn">セーブを書き出す</button><button id="importBtn">セーブを読み込む</button><button id="resetBtn" class="danger">最初からやり直す</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
+<p>保存内容はこの端末内に保持します。開発中のため販売用MSIX・Windows実機検査はまだ未完了です。</p></div></details>
+<footer>架空の店舗と需要のゲームです。外部送信・現実のお金の取引はありません。</footer>
+</main>
+</body></html>
