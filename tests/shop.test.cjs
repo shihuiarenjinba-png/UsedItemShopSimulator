@@ -51,3 +51,12 @@ test('invalid fair value cannot bypass demand validation',()=>{
  const s=S.initial();s.inventory=[{id:10,type:'book',grade:'A',cost:100,price:500,fair:0}];
  assert.throws(()=>S.validate(s),/目利き/);
 });
+
+test("corrupted sales totals or nonsequential day records cannot be restored",()=>{
+ const initial=S.initial(42),item=S.offers(initial)[0];
+ const next=S.advance(initial,buyOne(item)).state;
+ const forged=JSON.parse(JSON.stringify(next));forged.totalSold+=1;
+ assert.throws(()=>S.validate(forged),/累計販売数/);
+ const broken=JSON.parse(JSON.stringify(next));broken.history[0].day=99;
+ assert.throws(()=>S.validate(broken),/履歴/);
+});
