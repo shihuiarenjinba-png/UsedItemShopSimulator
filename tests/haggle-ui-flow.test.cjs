@@ -2,7 +2,7 @@
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const E=require("../src/shop.js");
 const source=fs.readFileSync(path.join(__dirname,"../src/app.js"),"utf8");
-const ID_LIST=["day","cash","stock","sold","offers","inventory","budget","openBtn","report","history","resetBtn","exportBtn","importBtn","importFile","equipmentUpgrade","equipmentLevel","visitorSchedule","openingScreen","gameShell","openingModeEasy","openingModeNormal","openingModeHard","openingError","startGameBtn","financeSummary","repayAmount","repayBtn","repayAllBtn","repayMessage","restoreBtn"];
+const ID_LIST=["day","cash","stock","sold","offers","inventory","budget","openBtn","report","history","resetBtn","exportBtn","importBtn","importFile","equipmentUpgrade","equipmentLevel","visitorSchedule","openingScreen","gameShell","openingModeEasy","openingModeNormal","openingModeHard","openingError","startGameBtn","financeSummary","repayAmount","repayBtn","repayAllBtn","repayMessage","restoreBtn","restoreFromOpeningBtn"];
 function boot(savedRaw,{mode="easy",start=true}={}){
  const nodes={},listeners={},storage=new Map(),key="used-item-shop:save:v1";
  if(savedRaw!==undefined)storage.set(key,savedRaw);
@@ -187,7 +187,8 @@ test("reset requires a new funding choice, keeps a backup and never auto-starts 
  assert.equal(fresh.day,1);
  assert.equal(ui.nodes.openingScreen.hidden,true);
  assert.equal(ui.storage.get("used-item-shop:previous-run:v1"),old);
- ui.nodes.restoreBtn.click();
+ assert.equal(ui.nodes.restoreFromOpeningBtn.disabled,false);
+ ui.nodes.restoreFromOpeningBtn.click();
  assert.equal(JSON.parse(ui.storage.get(ui.key)).finance.mode,"hard");
  assert.equal(JSON.parse(ui.storage.get(ui.key)).finance.principal,650000);
 });
