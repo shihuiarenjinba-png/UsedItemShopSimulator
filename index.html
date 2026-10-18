@@ -31,6 +31,29 @@
 <section class="dashboard" aria-label="店舗の状況">
 <div><small>営業日</small><strong id="day">1日目</strong><small id="gameClock" aria-live="off">10:00</small></div><div><small>現金残高</small><strong id="cash">—</strong></div>
 <div><small>在庫</small><strong id="stock">—</strong></div><div><small>累計販売・評判</small><strong id="sold">—</strong></div></section>
+
+<section class="shop-map" aria-labelledby="shopMapTitle">
+  <div class="shop-map-head">
+    <div><p class="eyebrow">TODAY'S SHOP FLOOR</p><h2 id="shopMapTitle">店内のようす</h2>
+      <p id="sceneStatus" class="shop-map-status" role="status">開店準備中。売り場と修理台を整えよう。</p></div>
+    <div class="shop-map-clock"><small>店内時計</small><strong id="sceneClock">10:00</strong></div>
+  </div>
+  <div class="shop-map-grid" aria-label="店内の操作場所">
+    <a class="shop-room shop-room-counter" href="#warehouseStage">
+      <span class="scene-object counter-object" aria-hidden="true"><span class="scene-person"></span><span class="scene-counter"></span></span>
+      <strong>買取カウンター <span aria-hidden="true">↗</span></strong><small id="sceneSeller">売り手の到着待ち</small>
+    </a>
+    <a class="shop-room shop-room-workshop" href="#workshopStage">
+      <span class="scene-object workshop-object" aria-hidden="true"><span class="scene-lamp"></span><span class="scene-workbench"></span></span>
+      <strong>修理台 <span aria-hidden="true">↗</span></strong><small id="sceneWorkshop">修理中 0点</small>
+    </a>
+    <a class="shop-room shop-room-shelf" href="#workshopStage">
+      <span class="scene-object shelf-object" aria-hidden="true"><span class="scene-stock"></span><span class="scene-stock second"></span><span class="scene-stock third"></span></span>
+      <strong>売場・倉庫 <span aria-hidden="true">↗</span></strong><small id="sceneShelf">売場 0点 / 倉庫 0点</small>
+    </a>
+  </div>
+  <p class="shop-map-foot" id="sceneVisitors">来客予定を準備中</p>
+</section>
 <nav class="tab-links" aria-label="店舗の操作案内">
 <a href="#warehouseStage">📦 倉庫・仕入</a><a href="#workshopStage">🔧 修理台・売場</a><a href="#financeStage">💴 資金・返済</a>
 </nav>
