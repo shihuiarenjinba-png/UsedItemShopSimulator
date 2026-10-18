@@ -165,7 +165,14 @@
  function persist(){if(recoveryBlocked)return false;try{localStorage.setItem(KEY,JSON.stringify(state));return true;}catch(error){notice='自動保存できませんでした。セーブ書き出しをご利用ください。';return false;}}
  function field(type,label,value,min=1,max=1000000){const wrap=el('label','',label),input=el('input');input.type='number';input.min=String(min);input.max=String(max);input.step='100';input.value=String(value);input.dataset.type=type;wrap.append(input);return {wrap,input};}
  function renderOffers(){const container=$('offers');container.replaceChildren();
-   for(const item of E.offers(state)){
+   const active=live()?.pendingSeller??null;
+   $('sellerRespondBtn').disabled=!active;
+   $('sellerSkipBtn').disabled=!active;
+   if(!active){
+     container.append(el('p','hint','開店すると売り手が予定時刻に来店します。到着時に時間が止まり、買取額を決められます。'));
+     return;
+   }
+   for(const item of E.offers(state).filter(x=>x.id===active)){
      const box=el('div','offer');box.append(el('h3','',item.name),el('div','grade','状態 '+item.grade));
      box.append(el('div','hint','来店 '+item.arrival+' ｜ '+item.sellerIcon+' '+item.sellerName));
      box.append(el('div','hint','売り手の希望額 '+yen(item.ask)));
@@ -194,9 +201,16 @@
      const label=el('label','toggle'),check=el('input');check.type='checkbox';check.dataset.offerId=String(item.id);label.append(check,document.createTextNode(' この商品を買い取る'));box.append(label);container.append(box);
    }
  }
- function renderInventory(){const root=$('inventory');root.replaceChildren();if(!state.inventory.length){root.append(el('p','hint','まだ在庫がありません。商品を買い取って販売を始めましょう。'));return;}
+ function renderInventory(){const root=$('inventory');root.replaceChildren();if(!storeItems().length){root.append(el('p','hint','まだ在庫がありません。商品を買い取って販売を始めましょう。'));return;}
    const table=el('table'),head=el('thead'),tr=el('tr');for(const h of ['商品','保管場所・経過','状態','仕入原価','現在の販売価格','修理','売場に並べる','採算と販売の見込み'])tr.append(el('th','',h));head.append(tr);table.append(head);
-   const body=el('tbody');for(const p of state.inventory){const row=el('tr');row.append(el('td','',E.TYPES[p.type].name),
+   const stock=storeItems(),warehouse=stock.filter(p=>(p.zone??'shelf')==='warehouse');
+   const maxPage=Math.max(0,Math.ceil(warehouse.length/9)-1);
+   warehousePage=Math.min(warehousePage,maxPage);
+   $('warehousePageLabel').textContent='📦 倉庫 '+(warehousePage+1)+' / '+(maxPage+1)+' （9点/ページ・全'+warehouse.length+'点）';
+   $('warehousePrev').disabled=warehousePage===0;
+   $('warehouseNext').disabled=warehousePage===maxPage;
+   const showing=stock.filter(p=>p.zone!=='warehouse').concat(warehouse.slice(warehousePage*9,(warehousePage+1)*9));
+   const body=el('tbody');for(const p of showing){const row=el('tr');row.append(el('td','',E.TYPES[p.type].name),
        el('td','hint',(p.zone==='warehouse'?'📦 倉庫':p.zone==='workshop'?'🔧 修理台':'🏬 売場')+
        ' ｜ 仕入後'+(p.ageDays??0)+'日'),
        el('td','',p.grade),el('td','',yen(p.cost)));
@@ -206,7 +220,7 @@
        const wrap=el('label','toggle'),check=el('input');
        check.type='checkbox';check.dataset.repairId=String(p.id);
        wrap.append(check,document.createTextNode(' 修理 '+yen(E.repairPrice(p,state.equipmentLevel??1))));
-       check.disabled=p.zone==='workshop';
+       check.disabled=p.zone==='workshop'||!!(p.zone==='workshop');
        rehab.append(wrap);
      }else rehab.textContent='最高状態';
      row.append(rehab);
@@ -286,27 +300,27 @@
  function renderFinance(){
    const root=$('financeSummary');
    const details=E.financeSummary(state);
-   const assetValue=state.inventory.reduce((n,item)=>n+item.cost,0)+
+   const assetValue=storeItems().reduce((n,item)=>n+item.cost,0)+
      ((state.equipmentLevel??1)>=2?E.EQUIPMENT_UPGRADE_COST:0);
-   const netWorth=state.cash+assetValue-details.totalDebt;
+   const netWorth=shopCash()+assetValue-details.totalDebt;
    root.replaceChildren(
      el('p','',details.mode==='legacy'?'旧ルールのセーブ：この進行には借入金や返済義務を後付けしません。':
        '開業資金の提供者：'+details.label+' ｜ 開業時の借入 '+yen(details.openingPrincipal)),
      el('p','', '元金残高 '+yen(details.principal)+' ｜ 未払利息 '+yen(details.interestDue)+
-       ' ｜ 現金 '+yen(state.cash)+' ｜ 在庫・機材の簿価目安 '+yen(assetValue)),
+       ' ｜ 現金 '+yen(shopCash())+' ｜ 在庫・機材の簿価目安 '+yen(assetValue)),
      el('p','', '参考純資産 '+yen(netWorth)+
        ' ｜ 返済期限 '+(details.deadline?details.deadline+'営業日':'返済は任意・または借入なし')),
      el('p','',details.nextInterestDay?'次の利息計上：'+details.nextInterestDay+'日目の営業終了時（元金残高の1%）':
        '新たな利息は発生しません。')
    );
-   $('repayAmount').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired;
-   $('repayBtn').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired;
-   $('repayAllBtn').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired;
+   $('repayAmount').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired||!!live();
+   $('repayBtn').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired||!!live();
+   $('repayAllBtn').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired||!!live();
    $('repayMessage').textContent=repayNotice||(details.mandatory&&state.day>180&&details.totalDebt>0?
      '期限までに完済できませんでした。再挑戦する場合はセーブを保護して最初から始めてください。':'返済前に次の営業費用を残しておくことをおすすめします。');
  }
  function repayRequested(all){
-   if(recoveryBlocked||onboardingRequired)return;
+   if(recoveryBlocked||onboardingRequired||live())return;
    try{
      const amount=all?E.financeSummary(state).totalDebt:Number($('repayAmount').value);
      if(!Number.isSafeInteger(amount)||amount<=0)throw Error('返済額には1円以上の整数を指定してください。');
@@ -316,10 +330,10 @@
      persist();refresh();
    }catch(error){repayNotice=error.message;renderFinance();}
  }
- function renderStats(){$('equipmentUpgrade').disabled=(state.equipmentLevel??1)>=2;
+ function renderStats(){$('equipmentUpgrade').disabled=(live()?.equipmentLevel??state.equipmentLevel??1)>=2;
    $('equipmentLevel').textContent='修理設備 '+(state.equipmentLevel??1)+' / 2 ｜ 売場 '+E.SHELF_CAPACITY+'点 ｜ 全保管 '+E.CAPACITY+'点';
-   $('visitorSchedule').textContent='今日の来店客 '+E.customerArrivals(state).length+'人（予測） ｜ 買取持ち込み '+E.offers(state).length+'組。時間帯は毎日変わります。';
-   $('day').textContent=state.day>180?'完走':state.day+'日目';$('cash').textContent=yen(state.cash);$('stock').textContent=state.inventory.length+' / '+E.CAPACITY+'点';$('sold').textContent=state.totalSold+'点 ｜ 評判 '+state.reputation;}
+   $('visitorSchedule').textContent='本日の買い手 '+E.customerArrivals(state).length+'人 ＋ 持ち込み '+E.offers(state).length+'組 （ポアソン過程で時間順に来店）。対応済み '+(live()?.cursor??0)+'件';
+   $('day').textContent=state.day>180?'完走':state.day+'日目';$('cash').textContent=yen(shopCash());$('stock').textContent=storeItems().length+' / '+E.CAPACITY+'点';$('sold').textContent=state.totalSold+'点 ｜ 評判 '+state.reputation;}
  function renderReport(){const root=$('report');root.replaceChildren();if(!lastReport){root.append(el('p','hint','営業後に、売れた品物・利益・売れ残りをここに表示します。'));return;}
    const fields=[['今日の売上',yen(lastReport.revenue)],['今日の利益',yen(lastReport.profit)],['売れた商品',lastReport.sold+'点'],['残った在庫',lastReport.inventory+'点']];
    const grid=el('div','report-grid');for(const [label,value]of fields){const box=el('div');box.append(el('div','hint',label),el('strong','',value));grid.append(box);}root.append(grid);
