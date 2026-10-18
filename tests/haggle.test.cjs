@@ -58,6 +58,6 @@ test("three-step UI exposes buy bid field and consistent budget calculation",()=
  assert.match(ui,/data-offer-bid/);
  assert.match(ui,/negotiationSavings/);
  assert.match(ui,/rejectedOffers/);
- assert.match(ui,/sum\+item\.bid/);
+ assert.match(ui,/Math\.max\(item\.bid,E\.counterPrice/);
  assert.equal((html.match(/class="step"/g)||[]).length,3);
 });
