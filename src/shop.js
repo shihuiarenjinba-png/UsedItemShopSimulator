@@ -37,7 +37,8 @@
     integer(input.totalSold,'totalSold',0,1e7);integer(input.equipmentLevel??1,'設備レベル',1,2);
     if(input.inventory.length>CAPACITY || input.history.length!==input.day-1) throw Error('セーブの在庫または履歴が不正です。');
     const seen=new Set();
-    if(input.inventory.filter(x=>(x.zone??'shelf')==='shelf').length>SHELF_CAPACITY)throw Error('売場が満杯です。');
+    const explicitShelf=input.inventory.filter(x=>x.zone==='shelf').length;
+    if(explicitShelf>SHELF_CAPACITY)throw Error('売場が満杯です。');
     for(const item of input.inventory){
       if(!item || !Number.isSafeInteger(item.id) || item.id<1 || seen.has(item.id) || !TYPES[item.type] || !GRADES[item.grade]) throw Error('在庫データが不正です。');
       seen.add(item.id);integer(item.cost,'原価',1,1000000);integer(item.price,'販売価格',1,1000000);integer(item.fair,'目利き評価額',1,1000000);
@@ -50,7 +51,15 @@
       if(item.wearDays!==undefined&&item.ageDays!==undefined&&item.wearDays>item.ageDays)throw Error('摩耗記録が不正です。');
     }
     let countedSold=0;for(let i=0;i<input.history.length;i++){const h=input.history[i];if(!h||h.day!==i+1||!Number.isSafeInteger(h.profit)||!Number.isSafeInteger(h.cash)||h.cash<0||!Number.isSafeInteger(h.sold)||h.sold<0)throw Error('履歴が不正です。');countedSold+=h.sold;}if(input.totalSold!==countedSold)throw Error('累計販売数と履歴が一致しません。');
-    return JSON.parse(JSON.stringify(input));
+    const migrated=JSON.parse(JSON.stringify(input));
+    // Prior v1 saves could have as many as 18 unzoned sale items. Keep all
+    // holdings and move only the excess to the warehouse, never discard them.
+    const implicit=migrated.inventory.filter(x=>x.zone===undefined);
+    if(explicitShelf+implicit.length>SHELF_CAPACITY){
+      let slots=SHELF_CAPACITY-explicitShelf;
+      for(const item of implicit){item.zone=slots>0?'shelf':'warehouse';slots--;}
+    }
+    return migrated;
   }
   function offers(state) {
     validate(state);
