@@ -121,7 +121,7 @@
       const accepted=mode==='fixed'||random(state.seed,state.day,600+offer.id)<probability;
       const cost=accepted?bid:counterPrice(offer.ask,fallback);
       negotiations.push({id:offer.id,name:offer.name,mode,bid,ask:offer.ask,probability,accepted,
-        fallback:accepted?'none':fallback,cost});
+        fallback,cost});
       if(!cost){
         rejectedOffers.push({id:offer.id,name:offer.name,bid,ask:offer.ask});
       }else{
