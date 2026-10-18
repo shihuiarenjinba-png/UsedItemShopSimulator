@@ -34,6 +34,7 @@ test('insufficient working capital blocks without a negative wallet',()=>{
 test('sales stay within inventory, and state can survive save/restore',()=>{
  let s=S.initial(222);
  for(let d=0;d<100;d++){
+  if(s.pendingMonth)s=S.closeMonthlyReview(s,0).state;
   const offer=S.offers(s)[0];const plan=s.cash>100000&&s.inventory.length<S.CAPACITY?
     buyOne(offer):{buy:[],prices:[]};
   if(s.cash<S.RENT)break;
