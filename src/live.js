@@ -58,6 +58,8 @@
    if(i.repairProgress!==undefined)whole(i.repairProgress,0,100,"修理進捗が不正です。");
   }
   check(input.inventory.filter(x=>(x.zone??"shelf")==="shelf").length<=E.SHELF_CAPACITY,"売場が満杯です。");
+  check(input.inventory.filter(x=>x.zone==="workshop").length<=input.equipmentLevel,"修理台の数を超えています。");
+  check(new Set(input.ownedTools).size===input.ownedTools.length,"同じ工具の記録が重複しています。");
   const next=schedule(base)[input.cursor];
   check(input.pendingSeller===null||(next&&next.kind==="seller"&&next.id===input.pendingSeller),"保留中の買取が不正です。");
   return copy(input);
@@ -145,7 +147,8 @@
    s.cash-=E.EQUIPMENT_UPGRADE_COST;s.equipmentCost+=E.EQUIPMENT_UPGRADE_COST;s.equipmentLevel=2;
    s.logs.push("修理設備を65,000円で増強");
   }
-  check(repairs.length<=s.equipmentLevel,"修理台の空きが足りません。");
+  const occupied=s.inventory.filter(x=>x.zone==="workshop").length;
+  check(repairs.length+occupied<=s.equipmentLevel,"修理台の空きが足りません。");
   for(const id of repairs){
    const item=s.inventory.find(x=>x.id===id);
    check(item&&item.grade!=="A"&&item.zone!=="workshop","修理できない在庫です。");
