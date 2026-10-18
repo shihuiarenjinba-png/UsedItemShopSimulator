@@ -271,15 +271,19 @@
     // The upgraded repair equipment is a capital expenditure, recovered as
     // an indicative per-item allocation over 65 future sales, not as a
     // second charge on the day the machine is purchased.
-    const equipmentAllocation=(state.equipmentLevel??1)>=2?Math.ceil(EQUIPMENT_UPGRADE_COST/65/100)*100:0;
-    const cost=item.cost+carrying+allocatedRent+equipmentAllocation;
+    const level=state.liveSession?.equipmentLevel??state.equipmentLevel??1;
+    const equipmentAllocation=level>=2?Math.ceil(EQUIPMENT_UPGRADE_COST/65/100)*100:0;
+    const ownedTools=state.liveSession?.ownedTools??state.ownedTools??[];
+    const prices={brush:0,driver:4800,cleaner:2600,solder:9800};
+    const toolAllocation=Math.ceil(ownedTools.reduce((n,id)=>n+(prices[id]??0),0)/65/100)*100;
+    const cost=item.cost+carrying+allocatedRent+equipmentAllocation+toolAllocation;
     const breakEven=Math.ceil(cost/100)*100;
     const target=Math.ceil(breakEven*1.18/100)*100;
     const price=item.price;
     const warning=breakEven>1000000?'販売価格の上限内で費用を回収できない見込み':
       price<breakEven?'保管・家賃・設備を考慮すると採算割れのおそれ':
       '想定費用を上回る価格（売却保証ではありません）';
-    return {breakEven,target,acquisitionCost:item.cost,carrying,allocatedRent,equipmentAllocation,
+    return {breakEven,target,acquisitionCost:item.cost,carrying,allocatedRent,equipmentAllocation,toolAllocation,
       profitBuffer:price-cost,warning};
   }
   function ageItem(item){
