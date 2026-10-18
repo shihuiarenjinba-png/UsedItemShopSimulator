@@ -36,7 +36,7 @@
    $('timeLabel').textContent=(clock.paused?(clock.elapsedMs?'一時停止中':'開店準備中'):'営業中')+' ｜ '+T.format(clock);
    const blocked=recoveryBlocked||onboardingRequired||state.day>180||!!state.pendingMonth;
    $('openBtn').disabled=blocked||!clock.paused||clock.elapsedMs>=T.DAY_MS;
-   $('openBtn').textContent=clock.elapsedMs?'営業を再開':'営業開始（20分）';
+   $('openBtn').textContent=clock.elapsedMs?'営業を再開':'営業開始（15分）';
    $('pauseBtn').disabled=blocked||clock.paused;
    $('fastForwardBtn').disabled=blocked;
    $('timeMessage').textContent=state.pendingMonth?'月末の返済判断を完了してください。':(clockNotice||(state.pendingMonth?'今月の決算を確認し、返済額を決めてください。':
