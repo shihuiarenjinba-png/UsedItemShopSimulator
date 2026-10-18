@@ -84,10 +84,10 @@
   function ageItem(item){
     const ageDays=integer(item.ageDays??0,'保管日数',0,180)+1;
     let wearDays=integer(item.wearDays??0,'整備からの経過',0,180)+1;
-    let grade=item.grade,fair=Math.max(1,Math.round(item.fair*(1-0.0035*TYPES[item.type].wearRate)));
-    if(wearDays>=14){
+    let grade=item.grade,fair=Math.max(1,Math.round(item.fair*(1-0.002*TYPES[item.type].wearRate)));
+    if(wearDays>=Math.ceil(30/TYPES[item.type].wearRate)){
       if(grade==='A')grade='B';else if(grade==='B')grade='C';
-      if(grade!==item.grade)fair=Math.max(1,Math.round(fair*0.92));
+      if(grade!==item.grade)fair=Math.max(1,Math.round(fair*0.94));
       wearDays=0;
     }
     return {...item,ageDays,wearDays,grade,fair};
