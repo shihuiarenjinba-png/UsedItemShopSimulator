@@ -88,3 +88,57 @@
 .tool-button{display:flex;justify-content:center;align-items:center;min-height:54px;padding:11px;background:#35545b;color:#fff;border:1px solid #7d9998;border-radius:9px;cursor:pointer}
 .tool-button:disabled{opacity:.6;cursor:not-allowed}
 @media(prefers-reduced-motion:reduce){.repair-product{transition:none}}
+
+
+
+/* Readable 2D shop-floor schematic. All hotspots navigate to existing real controls. */
+.shop-map{border:1px solid #6c8682;border-radius:17px;padding:clamp(14px,2.6vw,23px);
+  margin:17px 0;background:linear-gradient(142deg,#29434a 0%,#20363d 56%,#182d35 100%);
+  box-shadow:0 14px 28px #0a20252b}
+.shop-map-head{display:flex;justify-content:space-between;gap:15px;align-items:start;margin-bottom:15px}
+.shop-map-head h2{font-size:clamp(19px,2.3vw,24px);margin:3px 0}
+.shop-map-head .eyebrow{margin:0;color:#e6c78a;letter-spacing:.13em;font-size:10px}
+.shop-map-status{margin:5px 0;color:#e5eee9;line-height:1.5;font-size:14px}
+.shop-map-clock{min-width:95px;padding:9px 12px;text-align:center;background:#142931;border:1px solid #58736e;border-radius:10px}
+.shop-map-clock small{display:block;color:#b4c8c1;font-size:11px}
+.shop-map-clock strong{font-variant-numeric:tabular-nums;color:#ffe0a5;font-size:22px}
+.shop-map-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.shop-room{display:flex;flex-direction:column;text-decoration:none;color:#f6f4e9;
+  background:linear-gradient(165deg,#3b5454,#2c4548);border:1px solid #6a8983;
+  border-radius:13px;overflow:hidden;min-height:183px;padding:10px 12px;transition:transform 150ms ease, border-color 150ms ease}
+.shop-room:hover{transform:translateY(-2px);border-color:#f4d49a}
+.shop-room:focus-visible{outline:3px solid #ffe3a7;outline-offset:3px}
+.shop-room strong{font-size:15px;line-height:1.4}
+.shop-room strong span{color:#f2d095}
+.shop-room small{font-size:12px;color:#d2e5df;line-height:1.5;margin-top:3px}
+.scene-object{position:relative;display:block;overflow:hidden;border-radius:9px;height:112px;margin-bottom:10px;
+ background:repeating-linear-gradient(90deg,transparent 0 30px,#ffffff06 30px 31px),
+ linear-gradient(#58736f 0 58%,#425454 58% 100%)}
+.scene-object>span{display:block;position:absolute}
+.scene-counter{bottom:15px;left:15%;width:70%;height:27px;border:3px solid #7d5440;border-radius:5px;
+ background:linear-gradient(#d1aa77 0 25%,#986c4a 25% 100%);box-shadow:0 7px 0 #284046}
+.scene-person{z-index:1;left:calc(50% - 13px);top:19px;height:26px;width:26px;border-radius:50%;
+ background:#f1c8a8;border:3px solid #324850;box-shadow:0 19px 0 6px #436c68}
+.shop-map[data-arrival="waiting"] .scene-person{opacity:.38}
+.shop-map[data-arrival="seller"] .shop-room-counter{border-color:#ffe0a1;background:linear-gradient(#547065,#344949)}
+.scene-workbench{bottom:13px;left:13%;width:74%;height:31px;border-radius:5px 5px 0 0;
+ border:3px solid #5b493b;background:linear-gradient(#b28a63,#81654c);
+ box-shadow:0 8px 0 #34474a}
+.scene-workbench:after{content:"";position:absolute;top:-27px;left:38%;height:25px;width:25px;
+ background:linear-gradient(140deg,#ece4be,#9ca6a5);border:3px solid #3c5458;border-radius:6px;transform:rotate(-8deg)}
+.scene-lamp{top:10px;right:16%;height:38px;width:10px;background:#324b53;border-radius:6px;
+ box-shadow:9px -6px 0 -1px #e9cb88}
+.shelf-object{background:linear-gradient(#627a70 0 67%,#405754 67% 100%)}
+.shelf-object:before,.shelf-object:after{content:"";position:absolute;left:12%;right:12%;height:8px;
+ background:#ad8962;border:2px solid #665243;border-radius:3px;top:55px}
+.shelf-object:after{top:91px}
+.scene-stock{top:20px;left:19%;width:24px;height:31px;background:#cfab70;
+ border:2px solid #8c694a;border-radius:4px}
+.scene-stock.second{left:43%;width:30px;background:#708f8b}
+.scene-stock.third{left:72%;width:19px;background:#e0be8c}
+.shop-map-foot{margin:13px 2px 0;font-size:12px;color:#d8e5dc}
+@media(max-width:650px){.shop-map-grid{grid-template-columns:1fr}.shop-room{min-height:112px;
+  display:grid;grid-template-columns:112px 1fr;column-gap:12px;align-content:center}
+ .shop-room .scene-object{grid-row:span 2;margin:0;height:91px}.shop-room strong{align-self:end}
+ .shop-room small{align-self:start}.shop-map-head{align-items:center}.shop-map-clock strong{font-size:18px}}
+@media(prefers-reduced-motion:reduce){.shop-room{transition:none}.shop-room:hover{transform:none}}
