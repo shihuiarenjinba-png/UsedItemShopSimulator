@@ -113,11 +113,17 @@
        negotiationItems.reduce((sum,x)=>{const o=list.find(z=>z.id===x.id);
          return sum+E.offerProbability(o.ask,x.bid,o.seller)+(1-E.offerProbability(o.ask,x.bid,o.seller))*(x.fallback==='walk'?0:1);
        },0);
+     const marginAlerts=plannedStock.map(item=>{
+       const plannedPrice=p.prices.find(x=>x.id===item.id)?.price??item.price;
+       const advice=E.safePrice({...item,price:plannedPrice},state);
+       return plannedPrice<advice.breakEven?E.TYPES[item.type].name+'：採算ライン目安'+yen(advice.breakEven)+'未満':'';
+     }).filter(Boolean);
      box.textContent='必要資金の上限 '+yen(total)+' ＋ 修理 '+yen(spending)+' ＋ 機材 '+yen(equipment)+' ＋ 家賃 '+yen(E.RENT)+
        ' ｜ 最低残金 '+yen(remaining)+'。来客予定 '+expectedVisitors+'人（売り手を除く）'+
        ' ｜ 売場の購入見込み目安 '+Math.min(expectedVisitors,demand).toFixed(2)+'点/日。 '+
        ' ｜ 買取見込み '+expectedProcurement.toFixed(2)+'点。'+
-       (chance?chance+'。 ':'')+(notice||' 売れなくても翌日に持ち越せます。');
+       (chance?chance+'。 ':'')+(marginAlerts.length?' ⚠ '+marginAlerts.join('、')+'。':'')+
+       (notice||' 売れなくても翌日に持ち越せます。');
      $('openBtn').disabled=state.day>180;
    }catch(error){box.classList.add('error');box.textContent=error.message;$('openBtn').disabled=true;}
  }
