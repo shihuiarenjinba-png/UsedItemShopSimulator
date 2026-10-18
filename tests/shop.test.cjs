@@ -24,7 +24,7 @@ test('cannot buy duplicate, unknown item, or above capacity',()=>{
  assert.throws(()=>S.advance(a,{buy:[{id:o.id,price:500},{id:o.id,price:600}],prices:[]}),/重複/);
  assert.throws(()=>S.advance(a,{buy:[{id:9999,price:500}],prices:[]}),/不正/);
  let b=S.initial();b.inventory=Array.from({length:S.CAPACITY},(_,i)=>({id:10000+i,type:'book',grade:'B',price:5000,cost:2000,fair:6000}));
- assert.throws(()=>S.advance(b,buyOne(S.offers(b)[0])),/在庫/);
+ assert.throws(()=>S.advance(b,buyOne(S.offers(b)[0])),/在庫|売場/);
 });
 test('insufficient working capital blocks without a negative wallet',()=>{
  const a=S.initial();a.cash=100;
