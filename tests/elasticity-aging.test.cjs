@@ -66,12 +66,12 @@ test("more expensive sale prices reduce buying probability with category-specifi
 test("waiting wears unsold goods and decreases fair value without changing list price",()=>{
  let item={id:5,type:"camera",grade:"A",fair:45000,cost:26000,price:160000,ageDays:0,wearDays:0};
  const start=item.fair;
- for(let i=0;i<14;i++)item=S.ageItem(item);
- assert.equal(item.ageDays,14);
+ for(let i=0;i<30;i++)item=S.ageItem(item);
+ assert.equal(item.ageDays,30);
  assert.equal(item.grade,"B");
  assert.equal(item.wearDays,0);
  assert.equal(item.price,160000);
- assert.ok(item.fair<start*.95);
+ assert.ok(item.fair<start*.93);
  const repaired=S.advance({...S.initial(7),day:2,history:[{day:1,profit:-S.RENT,cash:700000-S.RENT,sold:0}],
   cash:700000-S.RENT,inventory:[{...item,ageDays:1,wearDays:1}]},
   {buy:[],prices:[{id:item.id,price:160000}],repairs:[item.id]});
