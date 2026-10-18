@@ -54,6 +54,39 @@
       deadline:FINANCE_MODES[f.mode].mandatory?180:null,openingPrincipal:f.openingPrincipal,
       paid:f.repayments.reduce((total,p)=>total+p.amount,0)};
   }
+  const DAYS_PER_MONTH=30;
+  function monthlySummary(raw,month){
+    const state=validate(raw);
+    integer(month,'集計月',1,6);
+    const end=month*DAYS_PER_MONTH,start=end-DAYS_PER_MONTH+1;
+    if(state.day<=end)throw Error('まだ月末を迎えていません。');
+    const days=state.history.slice(start-1,end);
+    if(days.length!==DAYS_PER_MONTH)throw Error('月の営業記録が不足しています。');
+    const sum=(field)=>days.every(x=>Number.isSafeInteger(x[field]))?
+      days.reduce((n,x)=>n+x[field],0):null;
+    return {month,startDay:start,endDay:end,operatingProfit:sum('profit'),
+      revenue:sum('revenue'),procurement:sum('procurement'),cogs:sum('cogs'),
+      repairSpending:sum('repairSpending'),equipmentCost:sum('equipmentCost'),
+      rent:sum('rent'),interestCharged:sum('interestCharged'),
+      sold:sum('sold'),endingCash:days[days.length-1].cash,
+      openingCash:start===1?OPENING_LOAN:state.history[start-2].cash,
+      fullBreakdown:days.every(x=>Number.isSafeInteger(x.revenue)),
+      debt:state.finance?state.finance.principal+state.finance.interestDue:0,
+      mandatory:state.finance?FINANCE_MODES[state.finance.mode].mandatory:false};
+  }
+  function closeMonthlyReview(raw,amount=0){
+    const state=validate(raw);
+    const pending=state.pendingMonth;
+    if(!pending)throw Error('返済判断の必要な月次報告はありません。');
+    integer(amount,'月末返済金額',0,1e10);
+    if(!state.finance&&amount!==0)throw Error('旧ルールには借入返済がありません。');
+    const paid=amount?repay(state,amount).state:state;
+    const {pendingMonth,...rest}=paid;
+    const decision={month:pending.month,day:state.day,amount};
+    const next={...rest,monthDecisions:(state.monthDecisions??[]).concat(decision)};
+    validate(next);
+    return {state:next,decision};
+  }
   // Returns a copy; never modifies the player's saved state.
   function repay(raw,amount){
     const state=validate(raw);
@@ -114,6 +147,21 @@
     integer(input.seed,'seed',1,2147483647);integer(input.day,'day',1,181);
     integer(input.cash,'cash',0,1e10);integer(input.reputation,'reputation',0,100);
     integer(input.totalSold,'totalSold',0,1e7);integer(input.equipmentLevel??1,'設備レベル',1,2);
+    if(input.pendingMonth!==undefined){
+      const p=input.pendingMonth;
+      if(!p||!Number.isSafeInteger(p.month)||p.month<1||p.month>6||
+         input.day!==p.month*DAYS_PER_MONTH+1)throw Error('月末報告の状態が不正です。');
+    }
+    if(input.monthDecisions!==undefined){
+      if(!Array.isArray(input.monthDecisions)||input.monthDecisions.length>6)throw Error('月末判断の記録が不正です。');
+      let last=0;
+      for(const d of input.monthDecisions){
+        if(!d||!Number.isSafeInteger(d.month)||d.month<=last||d.month>6||
+          d.day!==d.month*DAYS_PER_MONTH+1||!Number.isSafeInteger(d.amount)||d.amount<0)
+           throw Error('月末判断の記録が不正です。');
+        last=d.month;
+      }
+    }
     if(input.inventory.length>CAPACITY || input.history.length!==input.day-1) throw Error('セーブの在庫または履歴が不正です。');
     const seen=new Set();
     const explicitShelf=input.inventory.filter(x=>x.zone==='shelf').length;
@@ -255,6 +303,7 @@
   function advance(input,plan) {
     const state=validate(input);
     if(state.day>180) throw Error('180日間の経営を完走しました。');
+    if(state.pendingMonth)throw Error('月末の収益報告と返済判断を完了してください。');
     if(!plan || !Array.isArray(plan.buy)||!Array.isArray(plan.prices)) throw Error('仕入計画が不正です。');
     const avail=new Map(offers(state).map(x=>[x.id,x]));
     const purchases=[],selected=new Set(),rejectedOffers=[],negotiations=[];
@@ -371,10 +420,14 @@
       negotiationSavings:purchases.reduce((n,p)=>n+p.ask-p.cost,0),soldItems};
     const next={...state,day:state.day+1,cash,inventory:nextInventory,equipmentLevel,totalSold:state.totalSold+sold,...(financing?{finance:updatedFinance}:{}),
       reputation:Math.min(100,Math.max(0,state.reputation+(sold>=2?1:(nextInventory.length>10&&sold===0?-1:0)))),
-      history:state.history.concat([{day:report.day,profit:report.profit,cash:report.cash,sold:report.sold}])};
+      history:state.history.concat([{day:report.day,profit:report.profit,cash:report.cash,sold:report.sold,
+        revenue:report.revenue,procurement:report.procurement,cogs:report.cogs,
+        repairSpending:report.repairSpending,equipmentCost:report.equipmentCost,
+        rent:report.rent,interestCharged:report.interestCharged}]),
+      ...(state.day%DAYS_PER_MONTH===0?{pendingMonth:{month:state.day/DAYS_PER_MONTH}}:{})};
     validate(next);
     return {state:next,report};
   }
   function RentAndBuy(procurement){return procurement+RENT;}
-  return Object.freeze({VERSION,OPENING_LOAN,INTEREST_PERIOD,FINANCE_MODES,TYPES,GRADES,RENT,CAPACITY,SHELF_CAPACITY,EQUIPMENT_UPGRADE_COST,STAFF,FALLBACKS,initial,startGame,financeSummary,repay,validate,random,offers,saleChance,offerProbability,counterPrice,marketDemand,ageItem,customerArrivals,buyerChance,repairPrice,safePrice,advance});
+  return Object.freeze({VERSION,OPENING_LOAN,INTEREST_PERIOD,DAYS_PER_MONTH,FINANCE_MODES,monthlySummary,closeMonthlyReview,TYPES,GRADES,RENT,CAPACITY,SHELF_CAPACITY,EQUIPMENT_UPGRADE_COST,STAFF,FALLBACKS,initial,startGame,financeSummary,repay,validate,random,offers,saleChance,offerProbability,counterPrice,marketDemand,ageItem,customerArrivals,buyerChance,repairPrice,safePrice,advance});
 });
