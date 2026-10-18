@@ -1,15 +1,74 @@
 /* Used Item Shop: one-screen, three-step offline interface. */
 (function(){'use strict';
- const E=window.UsedItemShop,T=window.ShopTime,$=id=>document.getElementById(id),
+ const E=window.UsedItemShop,T=window.ShopTime,L=window.ShopLive,$=id=>document.getElementById(id),
    KEY='used-item-shop:save:v1',BACKUP_KEY='used-item-shop:previous-run:v1',
    TIME_KEY='used-item-shop:active-time:v1',BACKUP_TIME_KEY='used-item-shop:previous-time:v1';
  let state,notice='',recoveryBlocked=false,originalRaw=null,lastReport=null,onboardingRequired=false,repayNotice='';
  let clock,lastTick=0,clockTimer=null,clockNotice='',monthNotice='';
+
+ let selectedRepairId=null,warehousePage=0;
+ const live=()=>state.liveSession??null;
+ const storeItems=()=>live()?.inventory??state.inventory;
+ const shopCash=()=>live()?.cash??state.cash;
+ function commitLive(next){state={...state,liveSession:next};persist();}
+ function ensureLive(){if(!live()){state={...state,liveSession:L.initial(state)};persist();}return live();}
+ function applyPlan(){
+  if(recoveryBlocked||onboardingRequired||state.pendingMonth)return false;
+  try{
+   commitLive(L.configure(state,ensureLive(),plan()));clockNotice='在庫・機材の変更を反映しました。';
+   refresh();return true;
+  }catch(e){clockNotice=e.message;updateClock();refreshBudget();return false;}
+ }
+ function processArrivals(untilMinute){
+  const result=L.until(state,ensureLive(),untilMinute);commitLive(result.session);
+  if(result.interrupted){
+   const frac=(result.minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES);
+   clock=T.paused({...clock,elapsedMs:Math.round(frac*T.DAY_MS)});
+   if(clockTimer!==null){clearInterval(clockTimer);clockTimer=null;}
+   saveClock();clockNotice='買取希望者が来店！提示額を確認して対応してください。';refresh();return true;
+  }
+  return false;
+ }
+ function answerSeller(buy){
+  if(!live()?.pendingSeller)return;
+  try{
+   const candidate=buy?plan().buy[0]:null;
+   if(buy&&!candidate)throw Error('この品物を買い取る欄にチェックしてください。');
+   const out=L.respond(state,live(),candidate);commitLive(out.session);
+   clockNotice=out.action?(out.action.cost?'買取成立！商品を倉庫へ保管しました。':'買取交渉が不成立でした。'):'今回の買取を見送りました。';
+   refresh();
+  }catch(e){clockNotice=e.message;updateClock();}
+ }
+ function buyTool(id){
+  try{commitLive(L.buyTool(state,ensureLive(),id));clockNotice='工具を定価で購入しました。';refresh();}
+  catch(e){clockNotice=e.message;updateClock();}
+ }
+ function buyToolset(){
+  try{commitLive(L.completeToolset(state,ensureLive()));clockNotice='未所持の工具を一括定価購入しました。';refresh();}
+  catch(e){clockNotice=e.message;updateClock();}
+ }
+ function chooseRepair(id){selectedRepairId=id;renderWorkshop();}
+ function useTool(id){
+  try{commitLive(L.workOn(state,ensureLive(),selectedRepairId,id));clockNotice='作業が進みました。';refresh();}
+  catch(e){clockNotice=e.message;updateClock();}
+ }
+ function stopRepair(){
+  try{commitLive(L.stopRepair(state,ensureLive(),selectedRepairId));clockNotice='現状品として倉庫に戻しました。';selectedRepairId=null;refresh();}
+  catch(e){clockNotice=e.message;updateClock();}
+ }
+
  const monotonic=()=>typeof performance!=='undefined'?performance.now():Date.now();
  function restoreClock(){
    const raw=localStorage.getItem(TIME_KEY);
    if(!raw)return T.initial(state.day);
-   try{return T.validate(JSON.parse(raw),state.day);}
+   try{
+    let restored=T.validate(JSON.parse(raw),state.day);
+    if(live()){
+     const elapsed=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
+     if(elapsed>restored.elapsedMs)restored={...restored,elapsedMs:elapsed};
+    }
+    return restored;
+   }
    catch(error){clockNotice='営業時計の保存情報に不整合があるため10:00から停止しています。元データは保持されています。';
      return T.initial(state.day);}
  }
@@ -20,9 +79,13 @@
    if(!clock||clock.paused)return;
    if(document.hidden){stopClock();updateClock();return;}
    const now=monotonic(),delta=Math.min(5000,Math.max(0,Math.floor(now-lastTick)));lastTick=now;
-   if(delta>0)clock=T.tick(clock,delta);
+   if(delta>0){
+    const upcoming=T.tick(clock,delta);
+    if(processArrivals(T.gameMinutes(upcoming)))return;
+    clock=upcoming;
+   }
    if(clock.elapsedMs===T.DAY_MS){finishDay();return;}
-   saveClock();updateClock();
+   saveClock();updateClock();renderVisitorLog();
  }
  function startTimer(){
    if(clockTimer!==null)clearInterval(clockTimer);
@@ -35,28 +98,29 @@
    $('clockBar').value=T.progress(clock);
    $('timeLabel').textContent=(clock.paused?(clock.elapsedMs?'一時停止中':'開店準備中'):'営業中')+' ｜ '+T.format(clock);
    const blocked=recoveryBlocked||onboardingRequired||state.day>180||!!state.pendingMonth;
-   $('openBtn').disabled=blocked||!clock.paused||clock.elapsedMs>=T.DAY_MS;
+   $('openBtn').disabled=blocked||!!live()?.pendingSeller||!clock.paused||clock.elapsedMs>=T.DAY_MS;
    $('openBtn').textContent=clock.elapsedMs?'営業を再開':'営業開始（15分）';
    $('pauseBtn').disabled=blocked||clock.paused;
    $('fastForwardBtn').disabled=blocked;
-   $('timeMessage').textContent=state.pendingMonth?'月末の返済判断を完了してください。':(clockNotice||(state.pendingMonth?'今月の決算を確認し、返済額を決めてください。':
-     'ゲーム終了中と一時停止中は進みません。早送りしても来客抽選は短縮されません。'));
+   $('timeMessage').textContent=state.pendingMonth?'月末の返済判断を完了してください。':
+     (clockNotice||'スキップすると、残り時間の来客は発生せず、未成立の売買はなくなります。');
  }
  function beginDay(){
    if(recoveryBlocked||onboardingRequired||state.pendingMonth||state.day>180)return;
-   clock=T.running(clock);saveClock();startTimer();updateClock();
+   if(!applyPlan())return;
+   if(live()?.pendingSeller){clockNotice='来店中の売り手への対応が必要です。';refresh();return;}
+   clockNotice='';clock=T.running(clock);saveClock();startTimer();updateClock();
  }
  function pauseDay(){stopClock();updateClock();}
  function finishDay(){
    if(recoveryBlocked||onboardingRequired||state.pendingMonth||state.day>180)return;
    if(clockTimer!==null)stopClock();
-   // Day's finalized shop choices are settled only at close; a fast-forward
-   // takes the same deterministic economic path as a full 20-minute shift.
+   // Skip closes now: unarrived buyers and sellers vanish; completed trades persist.
    try{
-     const output=E.advance(state,plan());
-     state=output.state;lastReport=output.report;
+     const output=L.finish(state,live()??L.initial(state));
+     state={...output.state,lastReport:output.report};lastReport=output.report;
      notice=output.report.sold?'本日販売できた商品があります。':'本日の販売は0点でした。';
-     clock=T.initial(state.day);
+     selectedRepairId=null;warehousePage=0;clock=T.initial(state.day);
      persist();saveClock();refresh();
      if(state.pendingMonth)$('monthPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
      else $('report').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -93,7 +157,10 @@
  }
  const yen=x=>'¥'+Math.round(x).toLocaleString('ja-JP');
  const el=(tag,klass,text)=>{const a=document.createElement(tag);if(klass)a.className=klass;if(text!==undefined)a.textContent=text;return a};
- function load(){let raw=null;try{raw=localStorage.getItem(KEY);if(!raw){onboardingRequired=true;return E.initial();}return E.validate(JSON.parse(raw));}
+ function load(){let raw=null;try{raw=localStorage.getItem(KEY);if(!raw){onboardingRequired=true;return E.initial();}
+    const loaded=E.validate(JSON.parse(raw));
+    if(loaded.liveSession)L.validate(loaded,loaded.liveSession);
+    lastReport=loaded.lastReport??null;return loaded;}
    catch(error){recoveryBlocked=true;originalRaw=raw;notice='保存済みのデータを確認できませんでした。元のセーブは保持しています。';return E.initial();}}
  function persist(){if(recoveryBlocked)return false;try{localStorage.setItem(KEY,JSON.stringify(state));return true;}catch(error){notice='自動保存できませんでした。セーブ書き出しをご利用ください。';return false;}}
  function field(type,label,value,min=1,max=1000000){const wrap=el('label','',label),input=el('input');input.type='number';input.min=String(min);input.max=String(max);input.step='100';input.value=String(value);input.dataset.type=type;wrap.append(input);return {wrap,input};}
@@ -291,13 +358,14 @@
  function run(){beginDay();}
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;stopClock();if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
+    if(next.liveSession)L.validate(next,next.liveSession);
     state=next;clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);saveClock();onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;repayNotice='';
     notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
  function startWithMode(){
    if(!onboardingRequired||recoveryBlocked)return;
    const selected=$('openingModeHard').checked?'hard':$('openingModeNormal').checked?'normal':'easy';
    try{
-     state=E.startGame(selected);clock=T.initial(state.day);saveClock();
+     state=E.startGame(selected);selectedRepairId=null;clock=T.initial(state.day);saveClock();
      onboardingRequired=false;lastReport=null;repayNotice='';notice='';
      if(!persist())throw Error('開業情報を保存できませんでした。別の場所に保存してください。');
      refresh();
@@ -328,6 +396,7 @@
      const raw=localStorage.getItem(BACKUP_KEY);
      if(!raw)throw Error('復元できるバックアップがありません。');
      const restored=E.validate(JSON.parse(raw));
+     if(restored.liveSession)L.validate(restored,restored.liveSession);
      const previousTime=localStorage.getItem(BACKUP_TIME_KEY);
      const restoredTime=previousTime?T.validate(JSON.parse(previousTime),restored.day):T.initial(restored.day);
      const current=localStorage.getItem(KEY);
@@ -337,7 +406,7 @@
      if(originalTime!==null)localStorage.setItem(BACKUP_TIME_KEY,originalTime);
      else localStorage.removeItem(BACKUP_TIME_KEY);
      stopClock();localStorage.setItem(KEY,raw);localStorage.setItem(TIME_KEY,JSON.stringify(restoredTime));
-     state=restored;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
+     state=restored;lastReport=restored.lastReport??null;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
      repayNotice='';notice='前回の進行を復元しました。';refresh();
    }catch(error){alert('セーブを復元できませんでした：'+error.message);}
  }
