@@ -5,3 +5,12 @@
 .offer input:disabled,.offer select:disabled{opacity:.5;cursor:not-allowed}
 .offer select:focus-visible{outline:3px solid #ffe59d;outline-offset:3px}
 .offer .hint{min-height:1em}
+
+/* In-store characters and workshop details remain lightweight and entirely offline. */
+.equipment{border:1px solid #596d73;border-radius:10px;background:#202f36;margin-top:15px;padding:10px 16px}
+.equipment summary{font-weight:750;color:#e5c07b;cursor:pointer}
+.equipment p{font-size:13px;color:#c0d0ce}
+.customer-line{border-bottom:1px solid #40565c;padding:6px 9px;margin:3px 0;font-size:13px;color:#d7e6df}
+.scroll-table{overflow-x:auto}
+.scroll-table table{min-width:790px}
+.offer .hint{line-height:1.7}
