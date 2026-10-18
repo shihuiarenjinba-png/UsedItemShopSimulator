@@ -197,6 +197,7 @@
    $('gameShell').hidden=onboardingRequired;
    if(onboardingRequired)$('openBtn').disabled=true;
    $('restoreBtn').disabled=!localStorage.getItem(BACKUP_KEY);
+   $('restoreFromOpeningBtn').disabled=!localStorage.getItem(BACKUP_KEY);
  }
  function run(){try{const output=E.advance(state,plan());state=output.state;lastReport=output.report;notice=output.report.sold?'販売できました。次は仕入れと在庫のバランスを考えましょう。':'今日は販売ゼロ。過剰在庫に注意しましょう。';persist();refresh();$('report').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(error){notice=error.message;refreshBudget();}}
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
