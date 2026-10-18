@@ -119,6 +119,7 @@
  function updateClock(){
    if(!clock)return;
    $('gameClock').textContent=T.format(clock);
+   $('sceneClock').textContent=T.format(clock);
    $('clockProgress').textContent=T.progress(clock)+'%';
    $('clockBar').value=T.progress(clock);
    $('timeLabel').textContent=(clock.paused?(clock.elapsedMs?'一時停止中':'開店準備中'):'営業中')+' ｜ '+T.format(clock);
@@ -417,6 +418,28 @@
    bundle.addEventListener('click',buyToolset);toolRoot.append(bundle);
    toolRoot.append(el('p','hint','未完成でも倉庫へ戻し、状態を明示して販売可能。工具操作中は画面の時計が進むため、ゆっくり作業するなら一時停止できます。'));
  }
+
+ function renderShopFloor(){
+   // Presentation only: the economy, arrival schedule and save format are unchanged.
+   const session=live(),items=storeItems(),waiting=!!session?.pendingSeller;
+   const onFloor=items.filter(x=>x.zone==='shelf').length;
+   const warehouse=items.filter(x=>x.zone==='warehouse').length;
+   const repair=items.filter(x=>x.zone==='workshop').length;
+   const total=state.day>180?0:E.customerArrivals(state).length+E.offers(state).length;
+   const handled=Math.min(total,session?.cursor??0);
+   const scene=$('shopMapTitle').closest('.shop-map');
+   scene.dataset.arrival=waiting?'seller':'waiting';
+   $('sceneSeller').textContent=waiting?'お客様が来店中・買取判断待ち':'売り手の到着を待っています';
+   $('sceneWorkshop').textContent='修理中 '+repair+'点 / 修理台 '+(session?.equipmentLevel??state.equipmentLevel??1)+'台';
+   $('sceneShelf').textContent='売場 '+onFloor+'点 / 倉庫 '+warehouse+'点';
+   $('sceneVisitors').textContent=state.day>180?'180営業日の経営を完走しました。':
+     '本日の来客予定 '+total+'人・組 ｜ 対応済み '+handled+'件 ｜ スキップした未来の来客は発生しません';
+   $('sceneStatus').textContent=state.pendingMonth?'月末決算中：返済額を決めると翌月へ進めます。':
+     waiting?'買取希望者が待っています。カウンターを開いて価格を決めましょう。':
+     !clock?.paused?'営業中：売場の価格と修理の状況を確認できます。':
+     '営業停止中：品物を倉庫から修理台・売場へ移して準備しましょう。';
+ }
+
  function renderStats(){
    $('equipmentUpgrade').disabled=(live()?.equipmentLevel??state.equipmentLevel??1)>=2;
    if($('equipmentUpgrade').disabled)$('equipmentUpgrade').checked=false;
@@ -454,7 +477,7 @@
  }
  function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
  function refresh(){
-   renderStats();renderOffers();renderInventory();renderWorkshop();renderVisitorLog();renderSound();renderReport();renderHistory();renderFinance();refreshBudget();showMonth();updateClock();
+   renderStats();renderShopFloor();renderOffers();renderInventory();renderWorkshop();renderVisitorLog();renderSound();renderReport();renderHistory();renderFinance();refreshBudget();showMonth();updateClock();
    $('openingScreen').hidden=!onboardingRequired;
    $('gameShell').hidden=onboardingRequired;
    if(onboardingRequired)$('openBtn').disabled=true;
