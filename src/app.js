@@ -18,22 +18,32 @@
    }
  }
  function renderInventory(){const root=$('inventory');root.replaceChildren();if(!state.inventory.length){root.append(el('p','hint','まだ在庫がありません。商品を買い取って販売を始めましょう。'));return;}
-   const table=el('table'),head=el('thead'),tr=el('tr');for(const h of ['商品','状態','仕入原価','現在の販売価格','売れやすさの目安'])tr.append(el('th','',h));head.append(tr);table.append(head);
+   const table=el('table'),head=el('thead'),tr=el('tr');for(const h of ['商品','状態','仕入原価','現在の販売価格','修理','売れやすさの目安'])tr.append(el('th','',h));head.append(tr);table.append(head);
    const body=el('tbody');for(const p of state.inventory){const row=el('tr');row.append(el('td','',E.TYPES[p.type].name),el('td','',p.grade),el('td','',yen(p.cost)));
      const inp=field('price','',p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
+     const rehab=el('td');
+     if(p.grade!=='A'){
+       const wrap=el('label','toggle'),check=el('input');
+       check.type='checkbox';check.dataset.repairId=String(p.id);
+       wrap.append(check,document.createTextNode(' 修理 '+yen(Math.max(100,Math.round(p.fair*0.12/100)*100))));
+       rehab.append(wrap);
+     }else rehab.textContent='最高状態';
+     row.append(rehab);
      const score=E.saleChance(p.type,p.grade,p.price,p.fair,state.day,state.reputation);row.append(el('td','hint',score>.62?'売れやすい':score>.3?'標準':'じっくり待つ価格'));body.append(row);
    }table.append(body);root.append(table);
  }
- function plan(){const buy=[],prices=[];for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){const id=Number(check.dataset.offerId);buy.push({id,price:Number(document.querySelector('[data-offer-price="'+id+'"]').value)});}
+ function plan(){const buy=[],prices=[],repairs=[];for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){const id=Number(check.dataset.offerId);buy.push({id,price:Number(document.querySelector('[data-offer-price="'+id+'"]').value)});}
    for(const input of document.querySelectorAll('[data-stock-price]'))prices.push({id:Number(input.dataset.stockPrice),price:Number(input.value)});
-   return {buy,prices};}
+   for(const checkbox of document.querySelectorAll('[data-repair-id]'))if(checkbox.checked)repairs.push(Number(checkbox.dataset.repairId));
+   return {buy,prices,repairs};}
  function refreshBudget(){const box=$('budget');box.className='budget';if(recoveryBlocked){box.classList.add('error');box.textContent='元のセーブの保護中です。セーブ管理から退避するか、新規開始してください。';$('openBtn').disabled=true;return;}
    try{const p=plan(),list=E.offers(state),total=p.buy.reduce((sum,item)=>{if(!Number.isSafeInteger(item.price)||item.price<1||item.price>1e6)throw Error('販売価格は1〜100万円で指定してください。');return sum+list.find(o=>o.id===item.id).ask;},0);
      for(const price of p.prices)if(!Number.isSafeInteger(price.price)||price.price<1||price.price>1e6)throw Error('販売価格は1〜100万円で指定してください。');
-     const remaining=state.cash-total-E.RENT;
+     const spending=p.repairs.reduce((n,id)=>{const item=state.inventory.find(x=>x.id===id);return n+Math.max(100,Math.round(item.fair*0.12/100)*100);},0);
+     const remaining=state.cash-total-spending-E.RENT;
      if(state.inventory.length+p.buy.length>E.CAPACITY)throw Error('店の在庫スペースが足りません。');
      if(remaining<0)throw Error('今の仕入れ計画では家賃が払えません。');
-     box.textContent='仕入れ費用 '+yen(total)+' ＋ 家賃 '+yen(E.RENT)+' ｜ 営業開始時に残る資金 '+yen(remaining)+'。'+(notice||' 買い取り品を選んで一日営業しましょう。');
+     box.textContent='仕入れ費用 '+yen(total)+' ＋ 修理 '+yen(spending)+' ＋ 家賃 '+yen(E.RENT)+' ｜ 営業開始時に残る資金 '+yen(remaining)+'。'+(notice||' 買い取り品を選んで一日営業しましょう。');
      $('openBtn').disabled=state.day>180;
    }catch(error){box.classList.add('error');box.textContent=error.message;$('openBtn').disabled=true;}
  }
@@ -44,6 +54,7 @@
    const sold=lastReport.soldItems;
    const story=lastReport.sold>=2?'買い手が集まり、お店の評判が少しずつ高まっています。':lastReport.sold===1?'一点売れました。良い買い取り品を探してみましょう。':'売れ残りを抱えた一日。値段と在庫を見直すのが次の勝負です。';
    root.append(el('p','hint',story));
+   root.append(el('p','hint','本日の修理：'+lastReport.repaired+'点 ｜ 修理支出 '+yen(lastReport.repairSpending)));
    root.append(el('p','',sold.length?'売れた品：'+sold.map(x=>x.name+' '+yen(x.price)).join('、'):'今日は売れた商品がありません。価格や仕入れ品を見直しましょう。'));
  }
  function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
