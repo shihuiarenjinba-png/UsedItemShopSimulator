@@ -24,6 +24,7 @@
   const records=get("recordsStage");
   if(name==="records")records.querySelector("details").open=true;
   document.body.dataset.shopCurrentTab=name;
+  document.body.dataset.shopSeller=String(sellerWaiting);
   if(scroll)get("shopTabs").scrollIntoView({block:"start",behavior:"instant"});
   return true;
  }
