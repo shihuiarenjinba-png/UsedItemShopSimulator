@@ -6,6 +6,12 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const VERSION = 1;
+  const OPENING_LOAN=700000,INTEREST_PERIOD=30;
+  const FINANCE_MODES=Object.freeze({
+    easy:Object.freeze({label:'友達のお金',rateBps:0,mandatory:false}),
+    normal:Object.freeze({label:'母のお金',rateBps:0,mandatory:true}),
+    hard:Object.freeze({label:'利息付きの借金',rateBps:100,mandatory:true})
+  });
   const TYPES = Object.freeze({
     camera: {name:'中古カメラ', base:36000, interest:0.52, elasticity:1.8, wearRate:1.0},
     console: {name:'ゲーム機', base:26000, interest:0.66, elasticity:2.5, wearRate:1.25},
@@ -30,6 +36,79 @@
     integer(seed,'乱数シード',1,2147483647);
     return {version:VERSION,seed,day:1,cash:700000,inventory:[],history:[],totalSold:0,reputation:55,equipmentLevel:1};
   }
+  function startGame(mode,seed=20261018){
+    if(!Object.hasOwn(FINANCE_MODES,mode))throw Error('開業モードが不正です。');
+    const state=initial(seed);
+    return {...state,finance:{mode,openingPrincipal:OPENING_LOAN,principal:OPENING_LOAN,
+      interestDue:0,interestCharges:[],repayments:[]}};
+  }
+  function financeSummary(raw){
+    const state=validate(raw);
+    const f=state.finance;
+    if(!f)return {mode:'legacy',label:'旧ルール（借入なし）',principal:0,interestDue:0,
+      totalDebt:0,mandatory:false,nextInterestDay:null,deadline:null,openingPrincipal:0,paid:0};
+    return {mode:f.mode,label:FINANCE_MODES[f.mode].label,principal:f.principal,
+      interestDue:f.interestDue,totalDebt:f.principal+f.interestDue,
+      mandatory:FINANCE_MODES[f.mode].mandatory,
+      nextInterestDay:f.mode==='hard'&&state.day<=180?(Math.floor((state.day-1)/INTEREST_PERIOD)+1)*INTEREST_PERIOD:null,
+      deadline:FINANCE_MODES[f.mode].mandatory?180:null,openingPrincipal:f.openingPrincipal,
+      paid:f.repayments.reduce((total,p)=>total+p.amount,0)};
+  }
+  // Returns a copy; never modifies the player's saved state.
+  function repay(raw,amount){
+    const state=validate(raw);
+    if(!state.finance)throw Error('旧ルールのセーブには返済がありません。');
+    integer(amount,'返済額',1,1e10);
+    const f=state.finance;
+    if(amount>state.cash)throw Error('返済額が手元の現金を超えています。');
+    if(amount>f.principal+f.interestDue)throw Error('残りの借入金を超える返済はできません。');
+    const interestPaid=Math.min(f.interestDue,amount),principalPaid=amount-interestPaid;
+    const cash=state.cash-amount;
+    const record={day:state.day,amount,interestPaid,principalPaid,cashAfter:cash};
+    const next={...state,cash,finance:{...f,principal:f.principal-principalPaid,
+      interestDue:f.interestDue-interestPaid,repayments:f.repayments.concat(record)}};
+    validate(next);
+    return {state:next,report:{...record,remaining:next.finance.principal+next.finance.interestDue}};
+  }
+  function validateFinance(input){
+    const f=input.finance;
+    if(f===undefined)return; // true legacy saves must not acquire debt by accident
+    if(!f||!Object.hasOwn(FINANCE_MODES,f.mode)||f.openingPrincipal!==OPENING_LOAN||
+       !Array.isArray(f.repayments)||!Array.isArray(f.interestCharges))
+      throw Error('借入モードの保存内容が不正です。');
+    integer(f.principal,'残元金',0,OPENING_LOAN);integer(f.interestDue,'未払利息',0,1e9);
+    let principal=OPENING_LOAN,due=0,receiptIndex=0,chargeIndex=0;
+    let cashAtStart=OPENING_LOAN;
+    for(let d=1;d<=input.day;d++){
+      while(receiptIndex<f.repayments.length&&f.repayments[receiptIndex].day===d){
+        const p=f.repayments[receiptIndex++];
+        integer(p.amount,'返済額',1,1e10);
+        const toInterest=Math.min(due,p.amount),toPrincipal=p.amount-toInterest;
+        if(p.interestPaid!==toInterest||p.principalPaid!==toPrincipal||toPrincipal>principal)
+          throw Error('返済台帳が一致しません。');
+        cashAtStart-=p.amount;
+        if(cashAtStart<0||p.cashAfter!==cashAtStart)
+          throw Error('返済後の現金台帳が一致しません。');
+        due-=toInterest;principal-=toPrincipal;
+      }
+      if(d<input.day){
+        if(d%INTEREST_PERIOD===0&&f.mode==='hard'){
+          const expected=Math.round(principal*FINANCE_MODES.hard.rateBps/10000);
+          const entry=f.interestCharges[chargeIndex++];
+          if(!entry||entry.day!==d||entry.amount!==expected)
+            throw Error('利息台帳が一致しません。');
+          due+=expected;
+        }
+        // Closing cash for each day includes that day's customer sales and expenses.
+        cashAtStart=input.history[d-1].cash;
+      }
+    }
+    if(receiptIndex!==f.repayments.length||chargeIndex!==f.interestCharges.length||
+       principal!==f.principal||due!==f.interestDue||cashAtStart!==input.cash)
+      throw Error('借入残高または返済履歴が一致しません。');
+    if(f.mode!=='hard'&&(f.interestDue!==0||f.interestCharges.length!==0))
+      throw Error('無利息モードに利息が付いています。');
+  }
   function validate(input) {
     if (!input || input.version!==VERSION || !Array.isArray(input.inventory) || !Array.isArray(input.history)) throw Error('セーブデータの形式が違います。');
     integer(input.seed,'seed',1,2147483647);integer(input.day,'day',1,181);
@@ -51,6 +130,7 @@
       if(item.wearDays!==undefined&&item.ageDays!==undefined&&item.wearDays>item.ageDays)throw Error('摩耗記録が不正です。');
     }
     let countedSold=0;for(let i=0;i<input.history.length;i++){const h=input.history[i];if(!h||h.day!==i+1||!Number.isSafeInteger(h.profit)||!Number.isSafeInteger(h.cash)||h.cash<0||!Number.isSafeInteger(h.sold)||h.sold<0)throw Error('履歴が不正です。');countedSold+=h.sold;}if(input.totalSold!==countedSold)throw Error('累計販売数と履歴が一致しません。');
+    validateFinance(input);
     const migrated=JSON.parse(JSON.stringify(input));
     // Prior v1 saves could have as many as 18 unzoned sale items. Keep all
     // holdings and move only the excess to the warehouse, never discard them.
@@ -271,22 +351,30 @@
     }
     const soldIds=new Set(candidate.filter(x=>(x.zone??'shelf')==='shelf'&&!remaining.has(x.id)).map(x=>x.id));
     for(const item of candidate)if(!soldIds.has(item.id))nextInventory.push(ageItem(item));
-    const profit=revenue-cogs-RENT;
+    const financing=state.finance;
+    const interestCharged=financing&&financing.mode==='hard'&&state.day%INTEREST_PERIOD===0?
+      Math.round(financing.principal*FINANCE_MODES.hard.rateBps/10000):0;
+    const updatedFinance=financing?{...financing,
+      interestDue:financing.interestDue+interestCharged,
+      interestCharges:interestCharged||financing.mode==='hard'&&state.day%INTEREST_PERIOD===0?
+        financing.interestCharges.concat([{day:state.day,amount:interestCharged}]):
+        financing.interestCharges}:undefined;
+    const profit=revenue-cogs-RENT-interestCharged;
     const cash=state.cash-procurement-repairSpending-equipmentCost-RENT+revenue;
     integer(cash,'残高',0,1e10);
     const report={day:state.day,revenue,procurement,repairSpending,repaired:repairIds.length,equipmentCost,equipmentLevel,customers:customerLog,customerCount:arrivals.length,
       shelfCount:nextInventory.filter(x=>(x.zone??'shelf')==='shelf').length,
       warehouseCount:nextInventory.filter(x=>x.zone==='warehouse').length,
       workshopCount:nextInventory.filter(x=>x.zone==='workshop').length,
-      cogs,rent:RENT,profit,cash,inventory:nextInventory.length,sold,bought:purchases.length,
+      cogs,rent:RENT,interestCharged,profit,cash,inventory:nextInventory.length,sold,bought:purchases.length,
       rejectedOffers,negotiations,expectedSales:Math.round(expectedSales*100)/100,
       negotiationSavings:purchases.reduce((n,p)=>n+p.ask-p.cost,0),soldItems};
-    const next={...state,day:state.day+1,cash,inventory:nextInventory,equipmentLevel,totalSold:state.totalSold+sold,
+    const next={...state,day:state.day+1,cash,inventory:nextInventory,equipmentLevel,totalSold:state.totalSold+sold,...(financing?{finance:updatedFinance}:{}),
       reputation:Math.min(100,Math.max(0,state.reputation+(sold>=2?1:(nextInventory.length>10&&sold===0?-1:0)))),
       history:state.history.concat([{day:report.day,profit:report.profit,cash:report.cash,sold:report.sold}])};
     validate(next);
     return {state:next,report};
   }
   function RentAndBuy(procurement){return procurement+RENT;}
-  return Object.freeze({VERSION,TYPES,GRADES,RENT,CAPACITY,SHELF_CAPACITY,EQUIPMENT_UPGRADE_COST,STAFF,FALLBACKS,initial,validate,random,offers,saleChance,offerProbability,counterPrice,marketDemand,ageItem,customerArrivals,buyerChance,repairPrice,safePrice,advance});
+  return Object.freeze({VERSION,OPENING_LOAN,INTEREST_PERIOD,FINANCE_MODES,TYPES,GRADES,RENT,CAPACITY,SHELF_CAPACITY,EQUIPMENT_UPGRADE_COST,STAFF,FALLBACKS,initial,startGame,financeSummary,repay,validate,random,offers,saleChance,offerProbability,counterPrice,marketDemand,ageItem,customerArrivals,buyerChance,repairPrice,safePrice,advance});
 });
