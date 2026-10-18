@@ -35,5 +35,5 @@
  function gameMinutes(clock){return OPEN_MINUTES+Math.floor(clock.elapsedMs*(CLOSE_MINUTES-OPEN_MINUTES)/DAY_MS);}
  function format(clock){const m=gameMinutes(clock);return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");}
  function progress(clock){return Math.floor(clock.elapsedMs/DAY_MS*100);}
- return Object.freeze({DAY_MS,LEGACY_DAY_MS,OPEN_MINUTES,CLOSE_MINUTES,initial,validate,running,paused,tick,finish,format,progress});
+ return Object.freeze({DAY_MS,LEGACY_DAY_MS,OPEN_MINUTES,CLOSE_MINUTES,initial,validate,running,paused,tick,finish,gameMinutes,format,progress});
 });
