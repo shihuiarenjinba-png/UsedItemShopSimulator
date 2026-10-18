@@ -9,7 +9,8 @@ const IDS=["day","cash","stock","sold","offers","inventory","budget","openBtn","
 "gameClock","clockProgress","clockBar","timeLabel","pauseBtn","fastForwardBtn","timeMessage",
 "monthPanel","monthSummary","monthRepayment","monthPayBtn","monthSkipBtn","monthMessage",
 "sellerRespondBtn","sellerSkipBtn","warehousePageLabel","warehousePrev","warehouseNext","workbench",
-"toolShop","applyPlanBtn","visitorLog","soundToggleBtn"];
+"toolShop","applyPlanBtn","visitorLog","soundToggleBtn",
+"shopMapTitle","sceneStatus","sceneClock","sceneSeller","sceneWorkshop","sceneShelf","sceneVisitors"];
 function boot(savedRaw,{mode="easy",start=true,timeRaw=null}={}){
  const nodes={},listeners={},storage=new Map(),key="used-item-shop:save:v1";
  if(savedRaw!==undefined)storage.set(key,savedRaw);
@@ -28,6 +29,7 @@ function boot(savedRaw,{mode="easy",start=true,timeRaw=null}={}){
   click(){if(!this.disabled)this.listeners.click?.({target:this})}
  }
  for(const id of IDS)nodes[id]=new Element(id);
+ nodes.shopMapTitle.closest=()=>nodes.shopMapTitle; // shop-map ancestor in minimal VM DOM
  function allNodes(){const out=[];const visit=n=>{out.push(n);for(const c of n.children)visit(c)};for(const v of Object.values(nodes))visit(v);return out;}
  function queryAll(selector){
   const match=/^\[data-([a-z-]+)(?:="([^"]+)")?\]$/.exec(selector);
