@@ -54,7 +54,7 @@ test("three-step UI exposes buy bid field and consistent budget calculation",()=
  const fs=require("node:fs"),path=require("node:path");
  const ui=fs.readFileSync(path.join(__dirname,"../src/app.js"),"utf8");
  const html=fs.readFileSync(path.join(__dirname,"../index.html"),"utf8");
- assert.match(ui,/data\.offerBid/);
+ assert.match(ui,/dataset\.offerBid/);
  assert.match(ui,/data-offer-bid/);
  assert.match(ui,/negotiationSavings/);
  assert.match(ui,/rejectedOffers/);
