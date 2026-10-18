@@ -20,7 +20,7 @@
 </div>
 <details open><summary>最初に知っておくルール</summary>
 <p>売り手から商品を買い取り、倉庫から修理や値付けを行い、売場へ並べます。売れるかどうかは販売価格・状態・来客数で変わります。</p>
-<p>標準の1営業日は実時間20分（10時〜19時）。一時停止、セーブ、閉店まで早送りができます。画面を閉じている間は一切進みません。</p><p>仕入代金、修理費、家賃は現金から支払います。30営業日ごとに月次決算があり、借金からいくら返済するか選びます。</p>
+<p>標準の1営業日は実時間15分（10時〜19時）。一時停止、セーブ、閉店まで早送りができます。画面を閉じている間は一切進みません。</p><p>仕入代金、修理費、家賃は現金から支払います。30営業日ごとに月次決算があり、借金からいくら返済するか選びます。</p>
 <p>友達への返済は任意です。母や金融機関への借金は180営業日が期限です。ハードモードの利息は未払利息には重ねません。</p>
 <p><strong>開始後にモードは変更できません。</strong>「最初からやり直す」場合に限り、再度選べます。リセット前のセーブは別枠にバックアップします。</p></details>
 <button id="startGameBtn" class="primary" type="button">この資金で開業する</button><button id="restoreFromOpeningBtn" class="restore-opening" type="button">前回のプレイを復元する</button>
@@ -43,11 +43,11 @@
 <p id="equipmentLevel">修理設備 1 / 2</p><label class="toggle"><input id="equipmentUpgrade" type="checkbox"> 修理台を追加・機材を更新する（¥65,000）</label>
 <p class="hint">設備強化で1日の修理上限が2点になり、修理費も改善します。初期の基本機材は購入済みです。</p></details></section>
 <section class="stage open-day" id="openDayStage"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>来客の時間帯や販売結果を見て、倉庫・修理・価格を次の日に調整しよう。</p></div></div>
-<details class="stage-help"><summary>？ 営業時間と早送り</summary><p>営業10:00〜19:00は現実時間20分。営業開始後も価格や修理の予定を調整できます。現段階では買取・売却の抽選と支出確定は閉店時にまとめて行います。</p><p>一時停止・終了中は進みません。閉店まで早送りしても、来客数や売上判定は同一条件なら変わりません。</p></details>
+<details class="stage-help"><summary>？ 営業時間と早送り</summary><p>営業10:00〜19:00は現実時間15分。営業開始後も価格や修理の予定を調整できます。現段階では買取・売却の抽選と支出確定は閉店時にまとめて行います。</p><p>一時停止・終了中は進みません。閉店まで早送りしても、来客数や売上判定は同一条件なら変わりません。</p></details>
 <div class="clock-panel"><div class="clock-head"><strong id="timeLabel">開店準備中｜10:00</strong><span id="clockProgress">0%</span></div>
 <progress id="clockBar" max="100" value="0" aria-label="本日の営業時間の進捗"></progress>
 <div class="clock-actions">
-<button id="openBtn" class="primary" type="button">営業開始（20分）</button>
+<button id="openBtn" class="primary" type="button">営業開始（15分）</button>
 <button id="pauseBtn" type="button" disabled>一時停止</button>
 <button id="fastForwardBtn" type="button">閉店まで早送りして結果を見る</button></div>
 <p id="timeMessage" class="hint" role="status">時間は営業中だけ進み、保存して終了しても進みません。</p></div>
