@@ -118,7 +118,7 @@
     return schedule.sort((a,b)=>a.arrival.localeCompare(b.arrival)||a.id-b.id);
   }
   function buyerChance(state,item,visitor){
-    const affinity=visitor.kind===item.type?1.32:visitor.kind===null?.92:.62;
+    const affinity=visitor.kind===item.type?1.32:(visitor.kind===null?.92:.62);
     return Math.min(.92,Math.max(.001,saleChance(item.type,item.grade,item.price,item.fair,state.day,state.reputation)*
       marketDemand(state.seed,state.day,item.type)*affinity));
   }
@@ -214,12 +214,12 @@
     }
     const procurement=purchases.reduce((sum,x)=>sum+x.cost,0);
     const updatable=state.inventory.map(item=>{
-      if((item.zone??'shelf')==='workshop'&&item.repairReadyDay<=state.day)return {...item,zone:'warehouse',repairReadyDay:undefined};
+      if((item.zone??'shelf')==='workshop'&&item.repairReadyDay<=state.day){const {repairReadyDay,...rest}=item;return {...rest,zone:'warehouse'};}
       return {...item};
     });
     const listing=new Set(listIds);
     for(const id of listing){
-      const item=updatable.find(x=>x.id===id);
+      const item=state.inventory.find(x=>x.id===id);
       if(!item||item.zone!=='warehouse'||repairMap.has(id))throw Error('売場へ並べられない商品です。');
     }
     const shelfCount=updatable.filter(x=>(x.zone??'shelf')==='shelf'&&!repairMap.has(x.id)).length+listing.size;
