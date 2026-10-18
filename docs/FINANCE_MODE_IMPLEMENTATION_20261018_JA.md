@@ -1,3 +1,5 @@
+> **更新情報:** この書面は最初の開業・返済モデルの実装記録です。後続の20分時計・30日月次収益・任意返済の仕様および限定テスト78件については `docs/20MIN_DAY_MONTH_END_RESEARCH_20261018_JA.md` を参照。今回の最新ソースは `feature/20min-shop-day-monthly-review-20261018`。
+
 # 開業モードの保存・借入返済機能 — 実装記録（2026-10-18）
 
 開発ブランチ: `feature/onboarding-debt-workshop-spec-20261018`
