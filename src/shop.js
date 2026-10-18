@@ -138,12 +138,19 @@
     integer(expectedDays,'保有予定日',1,180);
     const carrying=Math.ceil(item.fair*.002*TYPES[item.type].wearRate*expectedDays/100)*100;
     const allocatedRent=Math.round(RENT*expectedDays/Math.max(2,SHELF_CAPACITY)/100)*100;
-    const cost=item.cost+carrying+allocatedRent;
-    const breakEven=Math.min(1000000,Math.ceil(cost/100)*100);
-    const target=Math.min(1000000,Math.ceil(breakEven*1.18/100)*100);
+    // The upgraded repair equipment is a capital expenditure, recovered as
+    // an indicative per-item allocation over 65 future sales, not as a
+    // second charge on the day the machine is purchased.
+    const equipmentAllocation=(state.equipmentLevel??1)>=2?Math.ceil(EQUIPMENT_UPGRADE_COST/65/100)*100:0;
+    const cost=item.cost+carrying+allocatedRent+equipmentAllocation;
+    const breakEven=Math.ceil(cost/100)*100;
+    const target=Math.ceil(breakEven*1.18/100)*100;
     const price=item.price;
-    return {breakEven,target,acquisitionCost:item.cost,carrying,allocatedRent,
-      profitBuffer:price-cost,warning:price<breakEven?'保管・家賃を考慮すると採算割れのおそれ':'想定費用を上回る価格（売却保証ではありません）'};
+    const warning=breakEven>1000000?'販売価格の上限内で費用を回収できない見込み':
+      price<breakEven?'保管・家賃・設備を考慮すると採算割れのおそれ':
+      '想定費用を上回る価格（売却保証ではありません）';
+    return {breakEven,target,acquisitionCost:item.cost,carrying,allocatedRent,equipmentAllocation,
+      profitBuffer:price-cost,warning};
   }
   function ageItem(item){
     const ageDays=integer(item.ageDays??0,'保管日数',0,180)+1;
