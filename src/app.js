@@ -330,6 +330,61 @@
      persist();refresh();
    }catch(error){repayNotice=error.message;renderFinance();}
  }
+
+ function renderVisitorLog(){
+   const root=$('visitorLog'),progress=live();
+   root.replaceChildren();
+   if(!progress){root.append(el('p','hint','営業開始後に、来客と売買を時間順に表示します。'));return;}
+   root.append(el('h3','','📋 今日の接客記録 ｜ 売上 '+yen(progress.revenue)+
+     ' ｜ 買取 '+progress.bought+'点 ｜ 販売 '+progress.sold+'点'));
+   for(const line of progress.logs.slice(-9))root.append(el('p','visitor-entry',line));
+ }
+ function renderWorkshop(){
+   const root=$('workbench'),toolRoot=$('toolShop');
+   root.replaceChildren();toolRoot.replaceChildren();
+   const items=storeItems().filter(x=>x.zone==='workshop');
+   if(!items.some(x=>x.id===selectedRepairId))selectedRepairId=items[0]?.id??null;
+   root.append(el('h3','','🔧 修理台｜道具を選んで整備する'));
+   if(!items.length)root.append(el('p','hint','現在、修理台は空いています。倉庫の商品を選び、「修理」にチェックして反映してください。'));
+   const select=el('div','workbench-items');
+   for(const item of items){
+     const btn=el('button','repair-select',E.TYPES[item.type].name+'（'+(item.repairProgress??0)+'%）');
+     btn.type='button';btn.addEventListener('click',()=>chooseRepair(item.id));
+     if(item.id===selectedRepairId)btn.className+=' selected';
+     select.append(btn);
+   }
+   root.append(select);
+   const item=items.find(x=>x.id===selectedRepairId);
+   if(item){
+     const center=el('div','workbench-center');
+     const icons={camera:'📷',console:'🎮',audio:'📻',book:'📚',car:'🚙'};
+     const icon=el('div','repair-product',(icons[item.type]||'📦'));
+     icon.className+=' dirt-'+(item.repairProgress??0<50?'heavy':(item.repairProgress??0)<85?'medium':'light');
+     center.append(el('p','hint','現在の作業対象：'+E.TYPES[item.type].name+'（状態 '+item.grade+'）'),icon);
+     const progress=el('progress');progress.max=100;progress.value=item.repairProgress??0;
+     progress.setAttribute('aria-label','修理進捗');center.append(progress,
+       el('p','hint','汚れ・整備進捗 '+(item.repairProgress??0)+'% / 100%'));
+     const interrupt=el('button','repair-stop','未完成のまま倉庫へ戻す');
+     interrupt.type='button';interrupt.addEventListener('click',stopRepair);center.append(interrupt);
+     root.append(center);
+   }
+   toolRoot.append(el('h3','','🧰 自分の所有工具（個別・まとめて定価購入）'));
+   const controls=el('div','tool-list'),owned=live()?.ownedTools??state.ownedTools??['brush'];
+   for(const tool of L.TOOLS){
+     const have=owned.includes(tool.id);
+     const button=el('button','tool-button',tool.icon+' '+tool.name+
+       (have?' ｜ 所有中':' ｜ '+yen(tool.price)+'で購入'));
+     button.type='button';
+     button.disabled=have&&!item;
+     button.addEventListener('click',()=>{if(have)useTool(tool.id);else buyTool(tool.id);});
+     controls.append(button);
+   }
+   toolRoot.append(controls);
+   const bundle=el('button','tool-bundle','不足している工具をすべて定価でそろえる');
+   bundle.type='button';bundle.disabled=L.TOOLS.every(t=>owned.includes(t.id));
+   bundle.addEventListener('click',buyToolset);toolRoot.append(bundle);
+   toolRoot.append(el('p','hint','未完成でも倉庫へ戻し、状態を明示して販売可能。工具操作中は画面の時計が進むため、ゆっくり作業するなら一時停止できます。'));
+ }
  function renderStats(){$('equipmentUpgrade').disabled=(live()?.equipmentLevel??state.equipmentLevel??1)>=2;
    $('equipmentLevel').textContent='修理設備 '+(state.equipmentLevel??1)+' / 2 ｜ 売場 '+E.SHELF_CAPACITY+'点 ｜ 全保管 '+E.CAPACITY+'点';
    $('visitorSchedule').textContent='本日の買い手 '+E.customerArrivals(state).length+'人 ＋ 持ち込み '+E.offers(state).length+'組 （ポアソン過程で時間順に来店）。対応済み '+(live()?.cursor??0)+'件';
@@ -362,7 +417,7 @@
  }
  function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
  function refresh(){
-   renderStats();renderOffers();renderInventory();renderReport();renderHistory();renderFinance();refreshBudget();showMonth();updateClock();
+   renderStats();renderOffers();renderInventory();renderWorkshop();renderVisitorLog();renderReport();renderHistory();renderFinance();refreshBudget();showMonth();updateClock();
    $('openingScreen').hidden=!onboardingRequired;
    $('gameShell').hidden=onboardingRequired;
    if(onboardingRequired)$('openBtn').disabled=true;
@@ -440,6 +495,11 @@
    $('restoreFromOpeningBtn').addEventListener('click',restoreLastGame);
    $('openBtn').addEventListener('click',()=>{if(!recoveryBlocked&&!onboardingRequired)run();});
    $('pauseBtn').addEventListener('click',pauseDay);
+   $('sellerRespondBtn').addEventListener('click',()=>answerSeller(true));
+   $('sellerSkipBtn').addEventListener('click',()=>answerSeller(false));
+   $('applyPlanBtn').addEventListener('click',applyPlan);
+   $('warehousePrev').addEventListener('click',()=>{warehousePage=Math.max(0,warehousePage-1);renderInventory();});
+   $('warehouseNext').addEventListener('click',()=>{warehousePage++;renderInventory();});
    $('fastForwardBtn').addEventListener('click',fastForwardDay);
    $('monthPayBtn').addEventListener('click',()=>decideMonthly(Number($('monthRepayment').value)));
    $('monthSkipBtn').addEventListener('click',()=>decideMonthly(0));
