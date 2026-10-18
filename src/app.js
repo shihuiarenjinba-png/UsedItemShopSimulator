@@ -1,10 +1,10 @@
 /* Used Item Shop: one-screen, three-step offline interface. */
 (function(){'use strict';
- const E=window.UsedItemShop,$=id=>document.getElementById(id),KEY='used-item-shop:save:v1';
- let state,notice='',recoveryBlocked=false,originalRaw=null,lastReport=null;
+ const E=window.UsedItemShop,$=id=>document.getElementById(id),KEY='used-item-shop:save:v1',BACKUP_KEY='used-item-shop:previous-run:v1';
+ let state,notice='',recoveryBlocked=false,originalRaw=null,lastReport=null,onboardingRequired=false,repayNotice='';
  const yen=x=>'¥'+Math.round(x).toLocaleString('ja-JP');
  const el=(tag,klass,text)=>{const a=document.createElement(tag);if(klass)a.className=klass;if(text!==undefined)a.textContent=text;return a};
- function load(){let raw=null;try{raw=localStorage.getItem(KEY);if(!raw)return E.initial();return E.validate(JSON.parse(raw));}
+ function load(){let raw=null;try{raw=localStorage.getItem(KEY);if(!raw){onboardingRequired=true;return E.initial();}return E.validate(JSON.parse(raw));}
    catch(error){recoveryBlocked=true;originalRaw=raw;notice='保存済みのデータを確認できませんでした。元のセーブは保持しています。';return E.initial();}}
  function persist(){if(recoveryBlocked)return false;try{localStorage.setItem(KEY,JSON.stringify(state));return true;}catch(error){notice='自動保存できませんでした。セーブ書き出しをご利用ください。';return false;}}
  function field(type,label,value,min=1,max=1000000){const wrap=el('label','',label),input=el('input');input.type='number';input.min=String(min);input.max=String(max);input.step='100';input.value=String(value);input.dataset.type=type;wrap.append(input);return {wrap,input};}
@@ -127,6 +127,39 @@
      $('openBtn').disabled=state.day>180;
    }catch(error){box.classList.add('error');box.textContent=error.message;$('openBtn').disabled=true;}
  }
+ function renderFinance(){
+   const root=$('financeSummary');
+   const details=E.financeSummary(state);
+   const assetValue=state.inventory.reduce((n,item)=>n+item.cost,0)+
+     ((state.equipmentLevel??1)>=2?E.EQUIPMENT_UPGRADE_COST:0);
+   const netWorth=state.cash+assetValue-details.totalDebt;
+   root.replaceChildren(
+     el('p','',details.mode==='legacy'?'旧ルールのセーブ：この進行には借入金や返済義務を後付けしません。':
+       '開業資金の提供者：'+details.label+' ｜ 開業時の借入 '+yen(details.openingPrincipal)),
+     el('p','', '元金残高 '+yen(details.principal)+' ｜ 未払利息 '+yen(details.interestDue)+
+       ' ｜ 現金 '+yen(state.cash)+' ｜ 在庫・機材の簿価目安 '+yen(assetValue)),
+     el('p','', '参考純資産 '+yen(netWorth)+
+       ' ｜ 返済期限 '+(details.deadline?details.deadline+'営業日':'返済は任意・または借入なし')),
+     el('p','',details.nextInterestDay?'次の利息計上：'+details.nextInterestDay+'日目の営業終了時（元金残高の1%）':
+       '新たな利息は発生しません。')
+   );
+   $('repayAmount').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired;
+   $('repayBtn').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired;
+   $('repayAllBtn').disabled=details.totalDebt===0||recoveryBlocked||onboardingRequired;
+   $('repayMessage').textContent=repayNotice||(details.mandatory&&state.day>180&&details.totalDebt>0?
+     '期限までに完済できませんでした。再挑戦する場合はセーブを保護して最初から始めてください。':'返済前に次の営業費用を残しておくことをおすすめします。');
+ }
+ function repayRequested(all){
+   if(recoveryBlocked||onboardingRequired)return;
+   try{
+     const amount=all?E.financeSummary(state).totalDebt:Number($('repayAmount').value);
+     if(!Number.isSafeInteger(amount)||amount<=0)throw Error('返済額には1円以上の整数を指定してください。');
+     const out=E.repay(state,amount);
+     state=out.state;repayNotice='返済 '+yen(amount)+'（利息 '+yen(out.report.interestPaid)+
+       '、元金 '+yen(out.report.principalPaid)+'）。残り '+yen(out.report.remaining);
+     persist();refresh();
+   }catch(error){repayNotice=error.message;renderFinance();}
+ }
  function renderStats(){$('equipmentUpgrade').disabled=(state.equipmentLevel??1)>=2;
    $('equipmentLevel').textContent='修理設備 '+(state.equipmentLevel??1)+' / 2 ｜ 売場 '+E.SHELF_CAPACITY+'点 ｜ 全保管 '+E.CAPACITY+'点';
    $('visitorSchedule').textContent='今日の来店客 '+E.customerArrivals(state).length+'人（予測） ｜ 買取持ち込み '+E.offers(state).length+'組。時間帯は毎日変わります。';
@@ -158,15 +191,66 @@
    root.append(el('p','',sold.length?'売れた品：'+sold.map(x=>x.name+' '+yen(x.price)).join('、'):'今日は売れた商品がありません。価格や仕入れ品を見直しましょう。'));
  }
  function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
- function refresh(){renderStats();renderOffers();renderInventory();renderReport();renderHistory();refreshBudget();}
+ function refresh(){
+   renderStats();renderOffers();renderInventory();renderReport();renderHistory();renderFinance();refreshBudget();
+   $('openingScreen').hidden=!onboardingRequired;
+   $('gameShell').hidden=onboardingRequired;
+   if(onboardingRequired)$('openBtn').disabled=true;
+   $('restoreBtn').disabled=!localStorage.getItem(BACKUP_KEY);
+ }
  function run(){try{const output=E.advance(state,plan());state=output.state;lastReport=output.report;notice=output.report.sold?'販売できました。次は仕入れと在庫のバランスを考えましょう。':'今日は販売ゼロ。過剰在庫に注意しましょう。';persist();refresh();$('report').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(error){notice=error.message;refreshBudget();}}
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
- async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;state=next;recoveryBlocked=false;originalRaw=null;lastReport=null;notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
- function init(){state=load();if(!recoveryBlocked)persist();refresh();
+ async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
+    state=next;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;repayNotice='';
+    notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
+ function startWithMode(){
+   if(!onboardingRequired||recoveryBlocked)return;
+   const selected=$('openingModeHard').checked?'hard':$('openingModeNormal').checked?'normal':'easy';
+   try{
+     state=E.startGame(selected);
+     onboardingRequired=false;lastReport=null;repayNotice='';notice='';
+     if(!persist())throw Error('開業情報を保存できませんでした。別の場所に保存してください。');
+     refresh();
+   }catch(error){$('openingError').textContent=error.message;onboardingRequired=true;}
+ }
+ function resetToNewGame(){
+   const warning=recoveryBlocked?
+     '壊れたセーブの原文を別枠へ保管してから、新しい開業モード選択へ戻ります。よろしいですか？':
+     '現在のプレイを別枠にバックアップし、開業モードを選び直しますか？';
+   if(!confirm(warning))return;
+   try{
+     const original=recoveryBlocked?originalRaw:localStorage.getItem(KEY);
+     if(original!==null)localStorage.setItem(BACKUP_KEY,original);
+     localStorage.removeItem(KEY);
+   }catch(error){alert('以前のセーブを保護できないためリセットしませんでした：'+error.message);return;}
+   recoveryBlocked=false;originalRaw=null;state=E.initial();onboardingRequired=true;lastReport=null;
+   repayNotice='';notice='';$('openingModeEasy').checked=true;
+   $('openingModeNormal').checked=false;$('openingModeHard').checked=false;
+   $('openingError').textContent='';refresh();
+ }
+ function restoreLastGame(){
+   if(!confirm('現在の進行状況を前回のバックアップと入れ替えますか？'))return;
+   try{
+     const raw=localStorage.getItem(BACKUP_KEY);
+     if(!raw)throw Error('復元できるバックアップがありません。');
+     const restored=E.validate(JSON.parse(raw));
+     const current=localStorage.getItem(KEY);
+     if(current!==null)localStorage.setItem(BACKUP_KEY,current);
+     else localStorage.removeItem(BACKUP_KEY);
+     localStorage.setItem(KEY,raw);
+     state=restored;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
+     repayNotice='';notice='前回の進行を復元しました。';refresh();
+   }catch(error){alert('セーブを復元できませんでした：'+error.message);}
+ }
+ function init(){state=load();if(!recoveryBlocked&&!onboardingRequired)persist();refresh();
    document.addEventListener('input',event=>{if(event.target.matches('input'))refreshBudget();});
    document.addEventListener('change',event=>{if(event.target.matches('input, select'))refreshBudget();});
-   $('openBtn').addEventListener('click',()=>{if(!recoveryBlocked)run();});
-   $('resetBtn').addEventListener('click',()=>{if(!confirm(recoveryBlocked?'壊れたセーブを上書きして新規開始します。先に元データを退避しましたか？':'現在のデータを上書きして初めから始めます。よろしいですか？'))return;recoveryBlocked=false;originalRaw=null;state=E.initial();lastReport=null;notice='';persist();refresh();});
+   $('startGameBtn').addEventListener('click',startWithMode);
+   $('repayBtn').addEventListener('click',()=>repayRequested(false));
+   $('repayAllBtn').addEventListener('click',()=>repayRequested(true));
+   $('restoreBtn').addEventListener('click',restoreLastGame);
+   $('openBtn').addEventListener('click',()=>{if(!recoveryBlocked&&!onboardingRequired)run();});
+   $('resetBtn').addEventListener('click',resetToNewGame);
    $('exportBtn').addEventListener('click',()=>download(recoveryBlocked?'used-shop-unreadable-original.json':'used-shop-day-'+state.day+'.json',recoveryBlocked&&originalRaw!==null?originalRaw:JSON.stringify({schema:E.VERSION,state},null,2)));
    $('importBtn').addEventListener('click',()=>$('importFile').click());$('importFile').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';void importSave(file);});
  }
