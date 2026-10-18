@@ -6,18 +6,23 @@
  let state,notice='',recoveryBlocked=false,originalRaw=null,lastReport=null,onboardingRequired=false,repayNotice='';
  let clock,lastTick=0,clockTimer=null,clockNotice='',monthNotice='';
 
- let selectedRepairId=null,warehousePage=0;
+ let selectedRepairId=null,warehousePage=0,workbenchNotice='';
  const live=()=>state.liveSession??null;
  const storeItems=()=>live()?.inventory??state.inventory;
  const shopCash=()=>live()?.cash??state.cash;
  function commitLive(next){state={...state,liveSession:next};persist();}
  function ensureLive(){if(!live()){state={...state,liveSession:L.initial(state)};persist();}return live();}
- function applyPlan(){
+ function applyPlan(revealRepair=false){
   if(recoveryBlocked||onboardingRequired||state.pendingMonth)return false;
   try{
-   commitLive(L.configure(state,ensureLive(),plan()));clockNotice='在庫・機材の変更を反映しました。';
-   refresh();return true;
-  }catch(e){clockNotice=e.message;updateClock();refreshBudget();return false;}
+   const requested=plan();
+   commitLive(L.configure(state,ensureLive(),requested));clockNotice='在庫・機材の変更を反映しました。';
+   workbenchNotice=requested.repairs.length?
+     '修理台へ'+requested.repairs.length+'点を移動しました。使う工具を選んでください。':'';
+   refresh();
+   if(revealRepair&&requested.repairs.length)window.ShopScreens?.select('repair');
+   return true;
+  }catch(e){clockNotice=e.message;workbenchNotice=e.message;updateClock();refreshBudget();return false;}
  }
  function processArrivals(untilMinute){
   const before=ensureLive(),result=L.until(state,before,untilMinute);
@@ -72,14 +77,18 @@
   try{commitLive(L.completeToolset(state,ensureLive()));clockNotice='未所持の工具を一括定価購入しました。';refresh();}
   catch(e){clockNotice=e.message;updateClock();}
  }
- function chooseRepair(id){selectedRepairId=id;renderWorkshop();}
+ function chooseRepair(id){selectedRepairId=id;workbenchNotice='商品を選択しました。所有工具で修理できます。';renderWorkshop();}
  function useTool(id){
-  try{commitLive(L.workOn(state,ensureLive(),selectedRepairId,id));playSound(590);clockNotice='作業が進みました。';refresh();}
-  catch(e){clockNotice=e.message;updateClock();}
+  try{
+    commitLive(L.workOn(state,ensureLive(),selectedRepairId,id));playSound(590);
+    const item=storeItems().find(x=>x.id===selectedRepairId);
+    workbenchNotice=item?.zone==='workshop'?'修理進捗 '+item.repairProgress+'% / 100%。次の工具を選べます。':'整備が100%になりました。商品は倉庫へ戻りました。';
+    clockNotice='修理作業が進みました。';refresh();
+  }catch(e){clockNotice=e.message;workbenchNotice=e.message;renderWorkshop();updateClock();}
  }
  function stopRepair(){
-  try{commitLive(L.stopRepair(state,ensureLive(),selectedRepairId));clockNotice='現状品として倉庫に戻しました。';selectedRepairId=null;refresh();}
-  catch(e){clockNotice=e.message;updateClock();}
+  try{commitLive(L.stopRepair(state,ensureLive(),selectedRepairId));clockNotice='現状品として倉庫に戻しました。';workbenchNotice=clockNotice;selectedRepairId=null;refresh();}
+  catch(e){clockNotice=e.message;workbenchNotice=e.message;renderWorkshop();updateClock();}
  }
 
  const monotonic=()=>typeof performance!=='undefined'?performance.now():Date.now();
@@ -149,7 +158,10 @@
      selectedRepairId=null;warehousePage=0;clock=T.initial(state.day);
      persist();saveClock();refresh();
      if(state.pendingMonth)$('monthPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
-     else $('report').scrollIntoView({behavior:'smooth',block:'nearest'});
+     else{
+       window.ShopScreens?.select('day');
+       $('report').scrollIntoView({behavior:'smooth',block:'nearest'});
+     }
    }catch(error){clock=T.paused(clock);clockNotice=error.message;saveClock();updateClock();refreshBudget();}
  }
  function fastForwardDay(){clock=T.finish(clock);saveClock();finishDay();}
@@ -378,6 +390,8 @@
    const items=storeItems().filter(x=>x.zone==='workshop');
    if(!items.some(x=>x.id===selectedRepairId))selectedRepairId=items[0]?.id??null;
    root.append(el('h3','','🔧 修理台｜道具を選んで整備する'));
+    const feedback=el('p','workbench-feedback',workbenchNotice||'修理中の商品を選んで所有工具を使用してください。');
+    feedback.setAttribute('role','status');root.append(feedback);
    if(!items.length)root.append(el('p','hint','現在、修理台は空いています。倉庫の商品を選び、「修理」にチェックして反映してください。'));
    const select=el('div','workbench-items');
    for(const item of items){
@@ -563,7 +577,7 @@
    $('pauseBtn').addEventListener('click',pauseDay);
    $('sellerRespondBtn').addEventListener('click',()=>answerSeller(true));
    $('sellerSkipBtn').addEventListener('click',()=>answerSeller(false));
-   $('applyPlanBtn').addEventListener('click',applyPlan);
+   $('applyPlanBtn').addEventListener('click',()=>applyPlan(true));
    $('soundToggleBtn').addEventListener('click',toggleSound);
    $('warehousePrev').addEventListener('click',()=>{warehousePage=Math.max(0,warehousePage-1);renderInventory();});
    $('warehouseNext').addEventListener('click',()=>{warehousePage++;renderInventory();});
