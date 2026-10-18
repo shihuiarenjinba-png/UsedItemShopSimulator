@@ -1,11 +1,12 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
-const E=require("../src/shop.js");
+const E=require("../src/shop.js"),T=require("../src/time.js");
 const source=fs.readFileSync(path.join(__dirname,"../src/app.js"),"utf8");
-const ID_LIST=["day","cash","stock","sold","offers","inventory","budget","openBtn","report","history","resetBtn","exportBtn","importBtn","importFile","equipmentUpgrade","equipmentLevel","visitorSchedule","openingScreen","gameShell","openingModeEasy","openingModeNormal","openingModeHard","openingError","startGameBtn","financeSummary","repayAmount","repayBtn","repayAllBtn","repayMessage","restoreBtn","restoreFromOpeningBtn"];
-function boot(savedRaw,{mode="easy",start=true}={}){
+const ID_LIST=["day","cash","stock","sold","offers","inventory","budget","openBtn","report","history","resetBtn","exportBtn","importBtn","importFile","equipmentUpgrade","equipmentLevel","visitorSchedule","openingScreen","gameShell","openingModeEasy","openingModeNormal","openingModeHard","openingError","startGameBtn","financeSummary","repayAmount","repayBtn","repayAllBtn","repayMessage","restoreBtn","restoreFromOpeningBtn","gameClock","clockProgress","clockBar","timeLabel","pauseBtn","fastForwardBtn","timeMessage","monthPanel","monthSummary","monthRepayment","monthPayBtn","monthSkipBtn","monthMessage"];
+function boot(savedRaw,{mode="easy",start=true,timeRaw=null}={}){
  const nodes={},listeners={},storage=new Map(),key="used-item-shop:save:v1";
  if(savedRaw!==undefined)storage.set(key,savedRaw);
+ if(timeRaw!==null)storage.set("used-item-shop:active-time:v1",timeRaw);
  class Element{
   constructor(tag="div"){this.tag=tag;this.children=[];this._text="";this.dataset={};this.listeners={};this.value="";this.checked=false;this.disabled=false;this.className="";this.files=[];this.classList={add:name=>{this.className+=" "+name}};}
   set textContent(s){this._text=String(s);this.children=[]}
@@ -40,7 +41,10 @@ function boot(savedRaw,{mode="easy",start=true}={}){
  let lastDownload=null;
  const Blob=class {constructor(parts){this.parts=parts}};
  const URL={createObjectURL(blob){lastDownload=blob.parts.join("");return "blob:test"},revokeObjectURL(){}};
- const context={window:{UsedItemShop:E},document,localStorage:{
+ let now=0,ticker=null;const pageListeners={};
+ const context={window:{UsedItemShop:E,ShopTime:T,addEventListener:(kind,fn)=>{pageListeners[kind]=fn;}},document,
+ performance:{now:()=>now},
+ setInterval:(fn)=>{ticker=fn;return 123},clearInterval:()=>{ticker=null},localStorage:{
   getItem:id=>storage.get(id)??null,
   setItem:(id,v)=>storage.set(id,v),removeItem:id=>storage.delete(id)
  },Blob,URL,setTimeout:()=>{},alert:()=>{},confirm:()=>true};
@@ -53,13 +57,14 @@ function boot(savedRaw,{mode="easy",start=true}={}){
   nodes.startGameBtn.click();
  }
  return {nodes,storage,key,lastDownload:()=>lastDownload,queryAll,
+  simulate(ms){now+=ms;if(ticker)ticker()},pause(){nodes.pauseBtn.click()},
   chooseFirst(bid,mode="fixed",fallback="walk"){
    const offer=nodes.offers.children[0],checkbox=offer.children.at(-1).children[0];checkbox.checked=true;
    const control=queryAll("[data-offer-mode]")[0];control.value=mode;control.listeners.change();
    queryAll("[data-offer-bid]")[0].value=String(bid);
    queryAll("[data-offer-fallback]")[0].value=fallback;
    listeners.change({target:{matches:()=>true}});
-  },run(){nodes.openBtn.click();}};
+  },run(){nodes.openBtn.click();nodes.fastForwardBtn.click();}};
 }
 test("customer may bid the ask and buy from the three-step GUI",()=>{
  const ui=boot(),ask=E.offers(E.initial())[0].ask;
