@@ -167,7 +167,7 @@ test("repair workbench accepts purchased tools and updates visible dust and prog
  const brush=tools.children[0];
  brush.click();
  assert.equal(ui.current().liveSession.inventory[0].repairProgress,18);
- assert.match(ui.nodes.workbench.textContent,/修理進捗 18%/);
+ assert.match(ui.nodes.workbench.textContent,/整備進捗 18%/);
 });
 test("mode can change only after reset; prior mode and session can be restored",()=>{
  const ui=boot(undefined,{mode:"hard"});
