@@ -142,3 +142,12 @@
  .shop-room .scene-object{grid-row:span 2;margin:0;height:91px}.shop-room strong{align-self:end}
  .shop-room small{align-self:start}.shop-map-head{align-items:center}.shop-map-clock strong{font-size:18px}}
 @media(prefers-reduced-motion:reduce){.shop-room{transition:none}.shop-room:hover{transform:none}}
+
+/* Product and owned tools share one functional repair station. */
+.workshop-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,1fr);
+ gap:13px;align-items:start;margin:17px 0}
+.workshop-layout>.workbench,.workshop-layout>.tool-shop{margin:0;min-width:0}
+.workshop-layout .tool-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+.workshop-layout .tool-button{min-height:68px;padding:8px;font-size:13px}
+@media(max-width:840px){.workshop-layout{grid-template-columns:1fr}
+ .workshop-layout .tool-list{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}}
