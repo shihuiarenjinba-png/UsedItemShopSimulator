@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),E=require("../src/shop.js");
 const idle={buy:[],prices:[]};
-function advanceTo(state,day){let s=state;while(s.day<day)s=E.advance(s,idle).state;return s;}
+function advanceTo(state,day){let s=state;while(s.day<day){if(s.pendingMonth)s=E.closeMonthlyReview(s,0).state;s=E.advance(s,idle).state;}return s;}
 test("three funding modes start with 700000 yen in cash, 700000 debt and zero initial equity",()=>{
  for(const mode of Object.keys(E.FINANCE_MODES)){
   const s=E.startGame(mode,13),f=E.financeSummary(s);
