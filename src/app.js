@@ -256,21 +256,21 @@
       if(!Object.hasOwn(E.FALLBACKS,item.fallback))throw Error('交渉失敗時の方針が不正です。');
       return sum+(item.mode==='fixed'?offer.ask:Math.max(item.bid,E.counterPrice(offer.ask,item.fallback)));},0);
      for(const price of p.prices)if(!Number.isSafeInteger(price.price)||price.price<1||price.price>1e6)throw Error('販売価格は1〜100万円で指定してください。');
-     const level=Math.min(2,(state.equipmentLevel??1)+Number(p.equipmentUpgrade));
-     const spending=p.repairs.reduce((n,id)=>{const item=state.inventory.find(x=>x.id===id);
+     const level=Math.min(2,(live()?.equipmentLevel??state.equipmentLevel??1)+Number(p.equipmentUpgrade));
+     const spending=p.repairs.reduce((n,id)=>{const item=storeItems().find(x=>x.id===id);
        if(!item||item.zone==='workshop'||item.grade==='A')throw Error('修理できない在庫が含まれています。');
        return n+E.repairPrice(item,level);},0);
      const equipment=p.equipmentUpgrade?E.EQUIPMENT_UPGRADE_COST:0;
      if(p.equipmentUpgrade&&(state.equipmentLevel??1)>=2)throw Error('機材はすでに強化済みです。');
      if(p.repairs.length>level)throw Error('修理台の数が足りません。');
-     const shelves=state.inventory.filter(x=>(x.zone??'shelf')==='shelf'&&!p.repairs.includes(x.id)).length+
+     const shelves=storeItems().filter(x=>(x.zone??'shelf')==='shelf'&&!p.repairs.includes(x.id)).length+
        p.list.length;
      if(shelves>E.SHELF_CAPACITY)throw Error('売場の陳列スペースが不足しています。');
-     if(p.list.some(id=>p.repairs.includes(id)||!state.inventory.some(x=>x.id===id&&x.zone==='warehouse')))throw Error('売場へ並べられない品物があります。');
-     const remaining=state.cash-total-spending-equipment-E.RENT;
-     if(state.inventory.length+p.buy.length>E.CAPACITY)throw Error('店の在庫スペースが足りません。');
+     if(p.list.some(id=>p.repairs.includes(id)||!storeItems().some(x=>x.id===id&&x.zone==='warehouse')))throw Error('売場へ並べられない品物があります。');
+     const remaining=shopCash()-total-spending-equipment-E.RENT;
+     if(storeItems().length+p.buy.length>E.CAPACITY)throw Error('店の在庫スペースが足りません。');
      if(remaining<0)throw Error('今の仕入れ計画では家賃が払えません。');
-     const plannedStock=state.inventory.filter(x=>!p.repairs.includes(x.id) && ((x.zone??'shelf')==='shelf'||p.list.includes(x.id)));
+     const plannedStock=storeItems().filter(x=>!p.repairs.includes(x.id) && ((x.zone??'shelf')==='shelf'||p.list.includes(x.id)));
      const demand=plannedStock.reduce((sum,item)=>sum+Math.min(.94,
        E.saleChance(item.type,item.grade,p.prices.find(x=>x.id===item.id)?.price??item.price,item.fair,state.day,state.reputation)*
        E.marketDemand(state.seed,state.day,item.type)),0);
@@ -359,7 +359,7 @@
      const center=el('div','workbench-center');
      const icons={camera:'📷',console:'🎮',audio:'📻',book:'📚',car:'🚙'};
      const icon=el('div','repair-product',(icons[item.type]||'📦'));
-     icon.className+=' dirt-'+(item.repairProgress??0<50?'heavy':(item.repairProgress??0)<85?'medium':'light');
+     icon.className+=' dirt-'+((item.repairProgress??0)<50?'heavy':(item.repairProgress??0)<85?'medium':'light');
      center.append(el('p','hint','現在の作業対象：'+E.TYPES[item.type].name+'（状態 '+item.grade+'）'),icon);
      const progress=el('progress');progress.max=100;progress.value=item.repairProgress??0;
      progress.setAttribute('aria-label','修理進捗');center.append(progress,
