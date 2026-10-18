@@ -422,7 +422,7 @@
  function renderShopFloor(){
    // Presentation only: the economy, arrival schedule and save format are unchanged.
    const session=live(),items=storeItems(),waiting=!!session?.pendingSeller;
-   const onFloor=items.filter(x=>x.zone==='shelf').length;
+   const onFloor=items.filter(x=>(x.zone??'shelf')==='shelf').length;
    const warehouse=items.filter(x=>x.zone==='warehouse').length;
    const repair=items.filter(x=>x.zone==='workshop').length;
    const total=state.day>180?0:E.customerArrivals(state).length+E.offers(state).length;
