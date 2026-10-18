@@ -77,11 +77,17 @@
      const demand=state.inventory.reduce((sum,item)=>sum+Math.min(.94,
        E.saleChance(item.type,item.grade,p.prices.find(x=>x.id===item.id)?.price??item.price,item.fair,state.day,state.reputation)*
        E.marketDemand(state.seed,state.day,item.type)),0);
-     const chance=p.buy.filter(x=>x.mode==='negotiate').map(x=>{
+     const negotiationItems=p.buy.filter(x=>x.mode==='negotiate');
+     const chance=negotiationItems.map(x=>{
        const o=list.find(z=>z.id===x.id);return o.name+'：交渉成立見込み '+Math.round(E.offerProbability(o.ask,x.bid)*100)+'%';
      }).join(' ｜ ');
+     const expectedProcurement=p.buy.length-negotiationItems.length+
+       negotiationItems.reduce((sum,x)=>{const o=list.find(z=>z.id===x.id);
+         return sum+E.offerProbability(o.ask,x.bid)+(1-E.offerProbability(o.ask,x.bid))*(x.fallback==='walk'?0:1);
+       },0);
      box.textContent='必要資金の上限 '+yen(total)+' ＋ 修理 '+yen(spending)+' ＋ 家賃 '+yen(E.RENT)+
        ' ｜ 最低残金 '+yen(remaining)+'。現在庫の予想販売数量 '+demand.toFixed(2)+'点/日。 '+
+       ' ｜ 買取見込み '+expectedProcurement.toFixed(2)+'点。'+
        (chance?chance+'。 ':'')+(notice||' 売れなくても翌日に持ち越せます。');
      $('openBtn').disabled=state.day>180;
    }catch(error){box.classList.add('error');box.textContent=error.message;$('openBtn').disabled=true;}
@@ -100,7 +106,13 @@
    root.append(el('p','hint','本日の修理：'+lastReport.repaired+'点 ｜ 修理支出 '+yen(lastReport.repairSpending)));
    root.append(el('p','hint','希望額との差額 '+yen(lastReport.negotiationSavings||0)+
      ' ｜ 不成立 '+(lastReport.rejectedOffers||[]).length+'件 ｜ 予想販売 '+(lastReport.expectedSales??0)+'点'));
-   for(const rejected of lastReport.rejectedOffers||[])root.append(el('p','hint',rejected.name+'：'+yen(rejected.bid)+'の買取提示は断られました。'));
+   for(const n of lastReport.negotiations||[]){
+     if(n.mode!=='negotiate')continue;
+     const msg=n.accepted?n.name+'：'+yen(n.bid)+'で交渉成立。':
+       n.fallback==='walk'?n.name+'：'+yen(n.bid)+'は断られ、今回は購入できませんでした。':
+       n.name+'：交渉は失敗しましたが、事前に指定した金額 '+yen(n.cost)+' で購入しました。';
+     root.append(el('p','hint',msg));
+   }
    root.append(el('p','',sold.length?'売れた品：'+sold.map(x=>x.name+' '+yen(x.price)).join('、'):'今日は売れた商品がありません。価格や仕入れ品を見直しましょう。'));
  }
  function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
