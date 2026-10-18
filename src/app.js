@@ -427,6 +427,9 @@
    const fields=[['今日の売上',yen(lastReport.revenue)],['今日の利益',yen(lastReport.profit)],['売れた商品',lastReport.sold+'点'],['残った在庫',lastReport.inventory+'点']];
    const grid=el('div','report-grid');for(const [label,value]of fields){const box=el('div');box.append(el('div','hint',label),el('strong','',value));grid.append(box);}root.append(grid);
    const sold=lastReport.soldItems;
+   if(lastReport.skippedVisitors!==undefined)root.append(el('p','hint',
+     '閉店時に見送った来客 '+lastReport.skippedVisitors+'人 ｜ 実際に対応した買い手 '+(lastReport.customerCount??0)+'人'));
+   for(const event of (lastReport.events||[]).slice(-10))root.append(el('p','customer-line',event));
    const arrivals=lastReport.customers||[];
    root.append(el('p','hint','来店者 '+(lastReport.customerCount??arrivals.length)+'人 ｜ 売場販売 '+lastReport.sold+'点 ｜ 倉庫 '+(lastReport.warehouseCount??0)+'点 ｜ 修理台 '+(lastReport.workshopCount??0)+'点 ｜ 機材支出 '+yen(lastReport.equipmentCost??0)));
    for(const customer of arrivals.slice(0,12))root.append(el('p','customer-line',
