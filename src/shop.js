@@ -38,6 +38,7 @@
       if(!item || !Number.isSafeInteger(item.id) || item.id<1 || seen.has(item.id) || !TYPES[item.type] || !GRADES[item.grade]) throw Error('在庫データが不正です。');
       seen.add(item.id);integer(item.cost,'原価',1,1000000);integer(item.price,'販売価格',1,1000000);integer(item.fair,'目利き評価額',1,1000000);
       integer(item.ageDays??0,'保管日数',0,180);
+      if((item.ageDays??0)>input.day-1)throw Error('保管日数と営業日が一致しません。');
       integer(item.wearDays??0,'整備からの経過',0,180);
       if(item.wearDays!==undefined&&item.ageDays!==undefined&&item.wearDays>item.ageDays)throw Error('摩耗記録が不正です。');
     }
