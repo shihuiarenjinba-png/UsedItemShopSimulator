@@ -5,7 +5,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'self';style-src 'self';connect-src 'none';img-src 'self' data:;object-src 'none';base-uri 'none'">
 <title>中古品店 — 小さな店から始める経営</title>
 <link rel="stylesheet" href="./style.css">
-<script defer src="./src/shop.js"></script><script defer src="./src/app.js"></script>
+<script defer src="./src/shop.js"></script>
+<script defer src="./src/time.js"></script><script defer src="./src/app.js"></script>
 </head>
 <body>
 <section id="openingScreen" class="opening" aria-labelledby="openingTitle" hidden>
@@ -19,7 +20,7 @@
 </div>
 <details open><summary>最初に知っておくルール</summary>
 <p>売り手から商品を買い取り、倉庫から修理や値付けを行い、売場へ並べます。売れるかどうかは販売価格・状態・来客数で変わります。</p>
-<p>1日進めるまでは営業時間は進みません。仕入代金、修理費、家賃は現金から支払います。利益と手元現金は同じではありません。</p>
+<p>標準の1営業日は実時間20分（10時〜19時）。一時停止、セーブ、閉店まで早送りができます。画面を閉じている間は一切進みません。</p><p>仕入代金、修理費、家賃は現金から支払います。30営業日ごとに月次決算があり、借金からいくら返済するか選びます。</p>
 <p>友達への返済は任意です。母や金融機関への借金は180営業日が期限です。ハードモードの利息は未払利息には重ねません。</p>
 <p><strong>開始後にモードは変更できません。</strong>「最初からやり直す」場合に限り、再度選べます。リセット前のセーブは別枠にバックアップします。</p></details>
 <button id="startGameBtn" class="primary" type="button">この資金で開業する</button><button id="restoreFromOpeningBtn" class="restore-opening" type="button">前回のプレイを復元する</button>
@@ -28,7 +29,7 @@
 <main class="shell" id="gameShell">
 <header><div><p class="eyebrow">USED ITEM SHOP SIMULATOR</p><h1>売るものを選ぶ。<br><span>値段を決める。店を育てる。</span></h1><p>仕入れが安くても、高く売りすぎるとお客さんが来ない。今日の一手が、明日の店を変える。</p></div><span class="version">OFFLINE / 開発版</span></header>
 <section class="dashboard" aria-label="店舗の状況">
-<div><small>営業日</small><strong id="day">1日目</strong></div><div><small>現金残高</small><strong id="cash">—</strong></div>
+<div><small>営業日</small><strong id="day">1日目</strong><small id="gameClock" aria-live="off">10:00</small></div><div><small>現金残高</small><strong id="cash">—</strong></div>
 <div><small>在庫</small><strong id="stock">—</strong></div><div><small>累計販売・評判</small><strong id="sold">—</strong></div></section>
 <nav class="tab-links" aria-label="店舗の操作案内">
 <a href="#warehouseStage">📦 倉庫・仕入</a><a href="#workshopStage">🔧 修理台・売場</a><a href="#financeStage">💴 資金・返済</a>
@@ -42,8 +43,25 @@
 <p id="equipmentLevel">修理設備 1 / 2</p><label class="toggle"><input id="equipmentUpgrade" type="checkbox"> 修理台を追加・機材を更新する（¥65,000）</label>
 <p class="hint">設備強化で1日の修理上限が2点になり、修理費も改善します。初期の基本機材は購入済みです。</p></details></section>
 <section class="stage open-day" id="openDayStage"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>来客の時間帯や販売結果を見て、倉庫・修理・価格を次の日に調整しよう。</p></div></div>
-<details class="stage-help"><summary>？ 毎日の営業のルール</summary><p>客数は毎日変わり、各来店客は最大1点を購入します。家賃は毎日発生し、ハードモードは30日ごとに利息が加算されます。</p></details><p id="budget" class="budget" role="status"></p><button class="primary" id="openBtn">この計画で1日営業する →</button></section>
+<details class="stage-help"><summary>？ 営業時間と早送り</summary><p>営業10:00〜19:00は現実時間20分。営業開始後も価格や修理の予定を調整できます。現段階では買取・売却の抽選と支出確定は閉店時にまとめて行います。</p><p>一時停止・終了中は進みません。閉店まで早送りしても、来客数や売上判定は同一条件なら変わりません。</p></details>
+<div class="clock-panel"><div class="clock-head"><strong id="timeLabel">開店準備中｜10:00</strong><span id="clockProgress">0%</span></div>
+<progress id="clockBar" max="100" value="0" aria-label="本日の営業時間の進捗"></progress>
+<div class="clock-actions">
+<button id="openBtn" class="primary" type="button">営業開始（20分）</button>
+<button id="pauseBtn" type="button" disabled>一時停止</button>
+<button id="fastForwardBtn" type="button">閉店まで早送りして結果を見る</button></div>
+<p id="timeMessage" class="hint" role="status">時間は営業中だけ進み、保存して終了しても進みません。</p></div>
+<p id="budget" class="budget" role="status"></p></section>
 <section class="stage" aria-labelledby="reportTitle"><h2 id="reportTitle">今日の結果</h2><div id="report"></div></section>
+<section class="stage month-panel" id="monthPanel" hidden aria-labelledby="monthTitle">
+<h2 id="monthTitle">今月の収益と返済</h2><p>30営業日分の経営成績です。返済金額を選んでから翌月へ進みます。</p>
+<div id="monthSummary" role="status"></div>
+<label class="month-amount" for="monthRepayment">今月、いくら借金の返済に充てますか？（円）
+<input id="monthRepayment" type="number" min="0" step="1000" value="0"></label>
+<div class="clock-actions"><button id="monthPayBtn" class="primary" type="button">この金額を返済して翌月へ</button>
+<button id="monthSkipBtn" type="button">今月は返済せずに翌月へ</button></div>
+<p id="monthMessage" class="hint" role="alert"></p>
+</section>
 <section class="stage finance-panel" id="financeStage" aria-labelledby="financeTitle">
 <div class="finance-heading"><span class="index">¥</span><div><h2 id="financeTitle">資金・返済</h2><p>残りの借入金、期限、支払い後に残る現金を確認できます。</p></div></div>
 <div id="financeSummary" class="finance-summary" role="status"></div>
