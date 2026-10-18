@@ -341,7 +341,11 @@
      repayNotice='';notice='前回の進行を復元しました。';refresh();
    }catch(error){alert('セーブを復元できませんでした：'+error.message);}
  }
- function init(){state=load();clock=restoreClock();if(!recoveryBlocked&&!onboardingRequired)persist();refresh();
+ function init(){state=load();clock=restoreClock();
+   // Persist migrated *valid* clock saves immediately. Do not overwrite a
+   // corrupted clock or unreadable finance save during recovery.
+   if(!recoveryBlocked&&!onboardingRequired){persist();if(!clockNotice)saveClock();}
+   refresh();
    document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseDay();});
    if(typeof window.addEventListener==='function')window.addEventListener('pagehide',()=>{pauseDay();});
    document.addEventListener('input',event=>{if(event.target.matches('input'))refreshBudget();});
