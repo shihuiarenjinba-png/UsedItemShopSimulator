@@ -483,6 +483,7 @@
    if(onboardingRequired)$('openBtn').disabled=true;
    $('restoreBtn').disabled=!localStorage.getItem(BACKUP_KEY);
    $('restoreFromOpeningBtn').disabled=!localStorage.getItem(BACKUP_KEY);
+   window.ShopScreens?.update({month:!!state.pendingMonth,seller:!!live()?.pendingSeller});
  }
  function run(){beginDay();}
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
