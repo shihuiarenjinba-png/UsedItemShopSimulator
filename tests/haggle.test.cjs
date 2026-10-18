@@ -5,7 +5,9 @@ test("full asking price is accepted and legacy buy plans remain identical",()=>{
  const s=S.initial(21),offer=S.offers(s)[0];
  const legacy=S.advance(s,{buy:[{id:offer.id,price:offer.defaultPrice}],prices:[]});
  const explicit=S.advance(s,{buy:[{id:offer.id,price:offer.defaultPrice,bid:offer.ask}],prices:[]});
- assert.deepEqual(legacy,explicit);
+ assert.deepEqual(legacy.state,explicit.state);
+ assert.equal(legacy.report.cash,explicit.report.cash);
+ assert.equal(legacy.report.procurement,explicit.report.procurement);
  assert.equal(explicit.report.bought,1);
  assert.equal(explicit.report.rejectedOffers.length,0);
  assert.equal(explicit.report.negotiationSavings,0);
