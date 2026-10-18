@@ -13,5 +13,5 @@ test("price changes and corrupted saves cannot be silently overwritten",()=>{
  assert.match(app,/recoveryBlocked=true/);
  assert.match(app,/if\(recoveryBlocked\)return false/);
  assert.match(app,/BACKUP_KEY/);assert.match(app,/localStorage\.removeItem\(KEY\)/);assert.match(app,/resetToNewGame/);
- assert.match(app,/E\.advance\(state,plan\(\)\)/);
+ assert.match(app,/L\.finish\(state,live\(\)\?\?L\.initial\(state\)\)/);
 });
