@@ -134,3 +134,67 @@ test("explicit machine upgrade charges cash and exposes repaired workbench capac
  assert.equal(state.cash,initial.cash-E.RENT-E.EQUIPMENT_UPGRADE_COST);
  assert.match(ui.nodes.equipmentLevel.textContent,/2 \/ 2/);
 });
+
+test("opening screen blocks play and offers three modes before any save exists",()=>{
+ const ui=boot(undefined,{start:false});
+ assert.equal(ui.storage.has(ui.key),false);
+ assert.equal(ui.nodes.openingScreen.hidden,false);
+ assert.equal(ui.nodes.gameShell.hidden,true);
+ assert.equal(ui.nodes.openBtn.disabled,true);
+});
+test("selected HARD mode survives reload with the correct debt and without mode cards",()=>{
+ const ui=boot(undefined,{mode:"hard"});
+ const raw=ui.storage.get(ui.key),s=JSON.parse(raw);
+ assert.equal(s.finance.mode,"hard");
+ assert.equal(s.finance.principal,700000);
+ assert.equal(ui.nodes.openingScreen.hidden,true);
+ assert.equal(ui.nodes.gameShell.hidden,false);
+ const reloaded=boot(raw);
+ assert.equal(reloaded.nodes.openingScreen.hidden,true);
+ assert.match(reloaded.nodes.financeSummary.textContent,/利息付きの借金/);
+ assert.equal(JSON.parse(reloaded.storage.get(reloaded.key)).finance.mode,"hard");
+});
+test("repayment buttons preserve mode and are reversible only through a new saved game",()=>{
+ const ui=boot(undefined,{mode:"normal"});
+ ui.nodes.repayAmount.value="50000";
+ ui.nodes.repayBtn.click();
+ let s=JSON.parse(ui.storage.get(ui.key));
+ assert.equal(s.finance.mode,"normal");
+ assert.equal(s.finance.principal,650000);
+ assert.equal(s.cash,650000);
+ assert.match(ui.nodes.repayMessage.textContent,/返済/);
+ const restored=boot(ui.storage.get(ui.key));
+ assert.equal(JSON.parse(restored.storage.get(restored.key)).finance.principal,650000);
+ assert.equal(restored.nodes.openingScreen.hidden,true);
+});
+test("reset requires a new funding choice, keeps a backup and never auto-starts another mode",()=>{
+ const ui=boot(undefined,{mode:"hard"});
+ ui.nodes.repayAmount.value="50000";ui.nodes.repayBtn.click();
+ const old=ui.storage.get(ui.key);
+ ui.nodes.resetBtn.click();
+ assert.equal(ui.storage.has(ui.key),false);
+ assert.equal(ui.storage.get("used-item-shop:previous-run:v1"),old);
+ assert.equal(ui.nodes.openingScreen.hidden,false);
+ assert.equal(ui.nodes.gameShell.hidden,true);
+ assert.equal(ui.nodes.openBtn.disabled,true);
+ ui.nodes.openingModeEasy.checked=false;
+ ui.nodes.openingModeNormal.checked=true;
+ ui.nodes.openingModeHard.checked=false;
+ ui.nodes.startGameBtn.click();
+ const fresh=JSON.parse(ui.storage.get(ui.key));
+ assert.equal(fresh.finance.mode,"normal");
+ assert.equal(fresh.finance.principal,700000);
+ assert.equal(fresh.day,1);
+ assert.equal(ui.nodes.openingScreen.hidden,true);
+ assert.equal(ui.storage.get("used-item-shop:previous-run:v1"),old);
+ ui.nodes.restoreBtn.click();
+ assert.equal(JSON.parse(ui.storage.get(ui.key)).finance.mode,"hard");
+ assert.equal(JSON.parse(ui.storage.get(ui.key)).finance.principal,650000);
+});
+test("imported old saves remain debt-free, while malformed saves are not overwritten",()=>{
+ const old=E.initial(6);
+ const ui=boot(JSON.stringify(old));
+ assert.equal(ui.nodes.openingScreen.hidden,true);
+ assert.match(ui.nodes.financeSummary.textContent,/旧ルール/);
+ assert.equal(JSON.parse(ui.storage.get(ui.key)).finance,undefined);
+});
