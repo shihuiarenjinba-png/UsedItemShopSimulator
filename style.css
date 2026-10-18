@@ -16,6 +16,9 @@
 .offer .hint{line-height:1.7}
 
 /* One-time start screen: mode can only change after an intentional reset. */
+.restore-opening{display:block;margin:12px 0 0;background:#29454b;color:#f8f5e8;border:1px solid #809997;border-radius:9px;padding:11px 16px;min-height:44px}
+.restore-opening:disabled{opacity:.5}
+
 [hidden]{display:none!important}
 .opening{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 25% 25%,#31505b,#101c23 75%)}
 .opening-card{background:#1b2d34;color:#f1f2e9;border:1px solid #6a858a;border-radius:18px;box-shadow:0 16px 60px #0007;max-width:780px;width:100%;padding:clamp(18px,4vw,36px)}
