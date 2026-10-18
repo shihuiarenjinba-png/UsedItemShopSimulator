@@ -114,3 +114,14 @@ test("forged future repair time or impossible equipment level is rejected",()=>{
  const other=JSON.parse(JSON.stringify(s));other.equipmentLevel=8;
  assert.throws(()=>E.validate(other),/設備レベル/);
 });
+
+test("old shop with 18 unzoned items migrates excess stock to warehouse without loss",()=>{
+ const old=E.initial(7);
+ old.inventory=Array.from({length:18},(_,i)=>({id:i+1,type:"camera",grade:"B",fair:24000,cost:9000,price:28000}));
+ const normalized=E.validate(old);
+ assert.equal(normalized.inventory.length,18);
+ assert.equal(normalized.inventory.filter(x=>(x.zone??"shelf")==="shelf").length,8);
+ assert.equal(normalized.inventory.filter(x=>x.zone==="warehouse").length,10);
+ assert.equal(old.inventory.every(x=>x.zone===undefined),true,"migration must not mutate caller data");
+ assert.equal(E.validate(normalized).inventory.length,18);
+});
