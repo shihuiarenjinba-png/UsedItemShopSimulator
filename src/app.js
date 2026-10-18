@@ -1,7 +1,96 @@
 /* Used Item Shop: one-screen, three-step offline interface. */
 (function(){'use strict';
- const E=window.UsedItemShop,$=id=>document.getElementById(id),KEY='used-item-shop:save:v1',BACKUP_KEY='used-item-shop:previous-run:v1';
+ const E=window.UsedItemShop,T=window.ShopTime,$=id=>document.getElementById(id),
+   KEY='used-item-shop:save:v1',BACKUP_KEY='used-item-shop:previous-run:v1',
+   TIME_KEY='used-item-shop:active-time:v1',BACKUP_TIME_KEY='used-item-shop:previous-time:v1';
  let state,notice='',recoveryBlocked=false,originalRaw=null,lastReport=null,onboardingRequired=false,repayNotice='';
+ let clock,lastTick=0,clockTimer=null,clockNotice='',monthNotice='';
+ const monotonic=()=>typeof performance!=='undefined'?performance.now():Date.now();
+ function restoreClock(){
+   const raw=localStorage.getItem(TIME_KEY);
+   if(!raw)return T.initial(state.day);
+   try{return T.validate(JSON.parse(raw),state.day);}
+   catch(error){clockNotice='営業時計の保存情報に不整合があるため10:00から停止しています。元データは保持されています。';
+     return T.initial(state.day);}
+ }
+ function saveClock(){try{localStorage.setItem(TIME_KEY,JSON.stringify(clock));}
+   catch(error){clockNotice='営業時計を保存できません。閉店・終了前にセーブ環境を確認してください。';}}
+ function stopClock(){if(clockTimer!==null){clearInterval(clockTimer);clockTimer=null;}if(clock)clock=T.paused(clock);saveClock();}
+ function pulse(){
+   if(!clock||clock.paused)return;
+   if(document.hidden){stopClock();updateClock();return;}
+   const now=monotonic(),delta=Math.min(5000,Math.max(0,Math.floor(now-lastTick)));lastTick=now;
+   if(delta>0)clock=T.tick(clock,delta);
+   if(clock.elapsedMs===T.DAY_MS){stopClock();finishDay();return;}
+   saveClock();updateClock();
+ }
+ function startTimer(){
+   if(clockTimer!==null)clearInterval(clockTimer);
+   lastTick=monotonic();clockTimer=setInterval(pulse,250);
+ }
+ function updateClock(){
+   if(!clock)return;
+   $('gameClock').textContent=T.format(clock);
+   $('clockProgress').textContent=T.progress(clock)+'%';
+   $('clockBar').value=T.progress(clock);
+   $('timeLabel').textContent=(clock.paused?(clock.elapsedMs?'一時停止中':'開店準備中'):'営業中')+' ｜ '+T.format(clock);
+   const blocked=recoveryBlocked||onboardingRequired||state.day>180||!!state.pendingMonth;
+   $('openBtn').disabled=blocked||!clock.paused||clock.elapsedMs>=T.DAY_MS;
+   $('openBtn').textContent=clock.elapsedMs?'営業を再開':'営業開始（20分）';
+   $('pauseBtn').disabled=blocked||clock.paused;
+   $('fastForwardBtn').disabled=blocked;
+   $('timeMessage').textContent=clockNotice||(state.pendingMonth?'今月の決算を確認し、返済額を決めてください。':
+     'ゲーム終了中と一時停止中は進みません。早送りしても来客抽選は短縮されません。');
+ }
+ function beginDay(){
+   if(recoveryBlocked||onboardingRequired||state.pendingMonth||state.day>180)return;
+   clock=T.running(clock);saveClock();startTimer();updateClock();
+ }
+ function pauseDay(){stopClock();updateClock();}
+ function finishDay(){
+   if(recoveryBlocked||onboardingRequired||state.pendingMonth||state.day>180)return;
+   if(clockTimer!==null)stopClock();
+   // Day's finalized shop choices are settled only at close; a fast-forward
+   // takes the same deterministic economic path as a full 20-minute shift.
+   try{
+     const output=E.advance(state,plan());
+     state=output.state;lastReport=output.report;
+     notice=output.report.sold?'本日販売できた商品があります。':'本日の販売は0点でした。';
+     clock=T.initial(state.day);
+     persist();saveClock();refresh();
+     if(state.pendingMonth)$('monthPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+     else $('report').scrollIntoView({behavior:'smooth',block:'nearest'});
+   }catch(error){clock=T.paused(clock);clockNotice=error.message;saveClock();updateClock();refreshBudget();}
+ }
+ function fastForwardDay(){clock=T.finish(clock);saveClock();finishDay();}
+ function showMonth(){
+   const panel=$('monthPanel');panel.hidden=!state.pendingMonth;
+   if(!state.pendingMonth)return;
+   const data=E.monthlySummary(state,state.pendingMonth.month);
+   const money=value=>value===null?'旧セーブに明細がないため集計不可':yen(value);
+   const root=$('monthSummary');root.replaceChildren();
+   root.append(el('h3','',data.month+'か月目（'+data.startDay+'〜'+data.endDay+'営業日）'));
+   for(const [title,num] of [['売上',data.revenue],['販売した商品の原価',data.cogs],
+      ['家賃',data.rent],['修理の現金支出',data.repairSpending],
+      ['機材の現金支出',data.equipmentCost],['当月発生利息',data.interestCharged],
+      ['当月損益',data.operatingProfit],['当月売れた点数',data.sold],
+      ['期末現金',data.endingCash],['残っている借入',data.debt]]){
+       root.append(el('p','',title+'：'+(title.includes('点数')?String(num)+'点':money(num))));
+   }
+   if(!data.fullBreakdown)root.append(el('p','hint','旧形式の営業記録には売上・原価明細がないため、一部の内訳は集計できません。'));
+   $('monthRepayment').disabled=!state.finance||E.financeSummary(state).totalDebt===0;
+   $('monthPayBtn').disabled=!state.finance||E.financeSummary(state).totalDebt===0;
+   $('monthSkipBtn').disabled=false;
+   $('monthMessage').textContent=monthNotice||'今月の返済を見送り、来月の営業資金を残すこともできます。';
+ }
+ function decideMonthly(amount){
+   try{
+     if(!Number.isSafeInteger(amount)||amount<0)throw Error('返済額は0円以上の整数で指定してください。');
+     const result=E.closeMonthlyReview(state,amount);
+     state=result.state;monthNotice='';repayNotice=amount?'月末に'+yen(amount)+'返済しました。':'今月の返済は見送りました。';
+     persist();refresh();
+   }catch(error){monthNotice=error.message;showMonth();}
+ }
  const yen=x=>'¥'+Math.round(x).toLocaleString('ja-JP');
  const el=(tag,klass,text)=>{const a=document.createElement(tag);if(klass)a.className=klass;if(text!==undefined)a.textContent=text;return a};
  function load(){let raw=null;try{raw=localStorage.getItem(KEY);if(!raw){onboardingRequired=true;return E.initial();}return E.validate(JSON.parse(raw));}
@@ -192,23 +281,23 @@
  }
  function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
  function refresh(){
-   renderStats();renderOffers();renderInventory();renderReport();renderHistory();renderFinance();refreshBudget();
+   renderStats();renderOffers();renderInventory();renderReport();renderHistory();renderFinance();refreshBudget();showMonth();updateClock();
    $('openingScreen').hidden=!onboardingRequired;
    $('gameShell').hidden=onboardingRequired;
    if(onboardingRequired)$('openBtn').disabled=true;
    $('restoreBtn').disabled=!localStorage.getItem(BACKUP_KEY);
    $('restoreFromOpeningBtn').disabled=!localStorage.getItem(BACKUP_KEY);
  }
- function run(){try{const output=E.advance(state,plan());state=output.state;lastReport=output.report;notice=output.report.sold?'販売できました。次は仕入れと在庫のバランスを考えましょう。':'今日は販売ゼロ。過剰在庫に注意しましょう。';persist();refresh();$('report').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(error){notice=error.message;refreshBudget();}}
+ function run(){beginDay();}
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
- async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
-    state=next;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;repayNotice='';
+ async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;stopClock();if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
+    state=next;clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);saveClock();onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;repayNotice='';
     notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
  function startWithMode(){
    if(!onboardingRequired||recoveryBlocked)return;
    const selected=$('openingModeHard').checked?'hard':$('openingModeNormal').checked?'normal':'easy';
    try{
-     state=E.startGame(selected);
+     state=E.startGame(selected);clock=T.initial(state.day);saveClock();
      onboardingRequired=false;lastReport=null;repayNotice='';notice='';
      if(!persist())throw Error('開業情報を保存できませんでした。別の場所に保存してください。');
      refresh();
@@ -222,9 +311,12 @@
    try{
      const original=recoveryBlocked?originalRaw:localStorage.getItem(KEY);
      if(original!==null)localStorage.setItem(BACKUP_KEY,original);
-     localStorage.removeItem(KEY);
+     const timeRaw=localStorage.getItem(TIME_KEY);
+     if(timeRaw!==null)localStorage.setItem(BACKUP_TIME_KEY,timeRaw);
+     else localStorage.removeItem(BACKUP_TIME_KEY);
+     localStorage.removeItem(KEY);localStorage.removeItem(TIME_KEY);
    }catch(error){alert('以前のセーブを保護できないためリセットしませんでした：'+error.message);return;}
-   recoveryBlocked=false;originalRaw=null;state=E.initial();onboardingRequired=true;lastReport=null;
+   stopClock();recoveryBlocked=false;originalRaw=null;state=E.initial();clock=T.initial(state.day);onboardingRequired=true;lastReport=null;
    repayNotice='';notice='';$('openingModeEasy').checked=true;
    $('openingModeNormal').checked=false;$('openingModeHard').checked=false;
    $('openingError').textContent='';refresh();
@@ -235,15 +327,22 @@
      const raw=localStorage.getItem(BACKUP_KEY);
      if(!raw)throw Error('復元できるバックアップがありません。');
      const restored=E.validate(JSON.parse(raw));
+     const previousTime=localStorage.getItem(BACKUP_TIME_KEY);
+     const restoredTime=previousTime?T.validate(JSON.parse(previousTime),restored.day):T.initial(restored.day);
      const current=localStorage.getItem(KEY);
+     const originalTime=localStorage.getItem(TIME_KEY);
      if(current!==null)localStorage.setItem(BACKUP_KEY,current);
      else localStorage.removeItem(BACKUP_KEY);
-     localStorage.setItem(KEY,raw);
-     state=restored;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
+     if(originalTime!==null)localStorage.setItem(BACKUP_TIME_KEY,originalTime);
+     else localStorage.removeItem(BACKUP_TIME_KEY);
+     localStorage.setItem(KEY,raw);localStorage.setItem(TIME_KEY,JSON.stringify(restoredTime));
+     stopClock();state=restored;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
      repayNotice='';notice='前回の進行を復元しました。';refresh();
    }catch(error){alert('セーブを復元できませんでした：'+error.message);}
  }
- function init(){state=load();if(!recoveryBlocked&&!onboardingRequired)persist();refresh();
+ function init(){state=load();clock=restoreClock();if(!recoveryBlocked&&!onboardingRequired)persist();refresh();
+   document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseDay();});
+   if(typeof window.addEventListener==='function')window.addEventListener('pagehide',()=>{pauseDay();});
    document.addEventListener('input',event=>{if(event.target.matches('input'))refreshBudget();});
    document.addEventListener('change',event=>{if(event.target.matches('input, select'))refreshBudget();});
    $('startGameBtn').addEventListener('click',startWithMode);
@@ -252,8 +351,12 @@
    $('restoreBtn').addEventListener('click',restoreLastGame);
    $('restoreFromOpeningBtn').addEventListener('click',restoreLastGame);
    $('openBtn').addEventListener('click',()=>{if(!recoveryBlocked&&!onboardingRequired)run();});
+   $('pauseBtn').addEventListener('click',pauseDay);
+   $('fastForwardBtn').addEventListener('click',fastForwardDay);
+   $('monthPayBtn').addEventListener('click',()=>decideMonthly(Number($('monthRepayment').value)));
+   $('monthSkipBtn').addEventListener('click',()=>decideMonthly(0));
    $('resetBtn').addEventListener('click',resetToNewGame);
-   $('exportBtn').addEventListener('click',()=>download(recoveryBlocked?'used-shop-unreadable-original.json':'used-shop-day-'+state.day+'.json',recoveryBlocked&&originalRaw!==null?originalRaw:JSON.stringify({schema:E.VERSION,state},null,2)));
+   $('exportBtn').addEventListener('click',()=>download(recoveryBlocked?'used-shop-unreadable-original.json':'used-shop-day-'+state.day+'.json',recoveryBlocked&&originalRaw!==null?originalRaw:JSON.stringify({schema:E.VERSION,state,clock},null,2)));
    $('importBtn').addEventListener('click',()=>$('importFile').click());$('importFile').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';void importSave(file);});
  }
  document.addEventListener('DOMContentLoaded',init);
