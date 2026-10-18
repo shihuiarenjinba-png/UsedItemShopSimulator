@@ -8,7 +8,8 @@ test('deterministic offers and next day',{timeout:5000},()=>{
 test('higher prices lower sale chances all else equal',()=>{
  for(const type of Object.keys(S.TYPES))for(const grade of Object.keys(S.GRADES)){
   const fair=S.TYPES[type].base*S.GRADES[grade];
-  assert.ok(S.saleChance(type,grade,1000,fair,1)>S.saleChance(type,grade,50000,fair,1));
+  const cheap=Math.round(fair*0.85),expensive=Math.round(fair*1.50);
+  assert.ok(S.saleChance(type,grade,cheap,fair,1)>S.saleChance(type,grade,expensive,fair,1));
  }
 });
 test('purchases, sales and rent balance cash without double-counting procurement',()=>{
