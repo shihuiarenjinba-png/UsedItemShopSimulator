@@ -6,7 +6,7 @@
 <title>中古品店 — 小さな店から始める経営</title>
 <link rel="stylesheet" href="./style.css">
 <script defer src="./src/shop.js"></script>
-<script defer src="./src/time.js"></script><script defer src="./src/live.js"></script><script defer src="./src/app.js"></script>
+<script defer src="./src/time.js"></script><script defer src="./src/live.js"></script><script defer src="./src/app.js"></script><script defer src="./src/shop-tabs.js"></script>
 </head>
 <body>
 <section id="openingScreen" class="opening" aria-labelledby="openingTitle" hidden>
@@ -32,7 +32,18 @@
 <div><small>営業日</small><strong id="day">1日目</strong><small id="gameClock" aria-live="off">10:00</small></div><div><small>現金残高</small><strong id="cash">—</strong></div>
 <div><small>在庫</small><strong id="stock">—</strong></div><div><small>累計販売・評判</small><strong id="sold">—</strong></div></section>
 
-<section class="shop-map" aria-labelledby="shopMapTitle">
+<div class="shop-workspace" id="shopWorkspace">
+<nav id="shopTabs" class="shop-tabs" role="tablist" aria-label="中古品店の操作メニュー">
+<button type="button" role="tab" data-shop-tab="home" aria-controls="shopHomeStage">🏠 店舗</button>
+<button type="button" role="tab" data-shop-tab="buy" aria-controls="warehouseStage">🤝 買取</button>
+<button type="button" role="tab" data-shop-tab="stock" aria-controls="inventoryStage">📦 在庫・売場</button>
+<button type="button" role="tab" data-shop-tab="repair" aria-controls="workshopStage">🔧 修理</button>
+<button type="button" role="tab" data-shop-tab="day" aria-controls="openDayStage">🕒 営業</button>
+<button type="button" role="tab" data-shop-tab="money" aria-controls="financeStage">💴 資金・返済</button>
+<button type="button" role="tab" data-shop-tab="records" aria-controls="recordsStage">📋 記録・セーブ</button>
+</nav>
+<div class="shop-view-stack">
+<section id="shopHomeStage" class="shop-map" data-shop-screen="home" aria-labelledby="shopMapTitle">
   <div class="shop-map-head">
     <div><p class="eyebrow">TODAY'S SHOP FLOOR</p><h2 id="shopMapTitle">店内のようす</h2>
       <p id="sceneStatus" class="shop-map-status" role="status">開店準備中。売り場と修理台を整えよう。</p></div>
@@ -47,25 +58,31 @@
       <span class="scene-object workshop-object" aria-hidden="true"><span class="scene-lamp"></span><span class="scene-workbench"></span></span>
       <strong>修理台 <span aria-hidden="true">↗</span></strong><small id="sceneWorkshop">修理中 0点</small>
     </a>
-    <a class="shop-room shop-room-shelf" href="#workshopStage">
+    <a class="shop-room shop-room-shelf" href="#inventoryStage">
       <span class="scene-object shelf-object" aria-hidden="true"><span class="scene-stock"></span><span class="scene-stock second"></span><span class="scene-stock third"></span></span>
       <strong>売場・倉庫 <span aria-hidden="true">↗</span></strong><small id="sceneShelf">売場 0点 / 倉庫 0点</small>
     </a>
   </div>
   <p class="shop-map-foot" id="sceneVisitors">来客予定を準備中</p>
 </section>
-<nav class="tab-links" aria-label="店舗の操作案内">
-<a href="#warehouseStage">📦 倉庫・仕入</a><a href="#workshopStage">🔧 修理台・売場</a><a href="#financeStage">💴 資金・返済</a>
-</nav>
-<section class="stage" id="warehouseStage">
+
+<section class="stage" id="warehouseStage" data-shop-screen="buy">
 <div class="step"><span class="index">1</span><div><h2>今日の持ち込み商品</h2><p>品物を見極め、買取提示額と店頭販売価格を決める。</p></div></div>
 <details class="stage-help"><summary>？ 仕入と交渉のルール</summary><p>提示額を安くすると買取に成功しにくくなります。希望額で買うか、交渉するかを選びます。失敗時の追加購入は事前に選択した場合のみです。</p></details><p id="visitorSchedule" class="budget">今日の来客予定を確認中...</p><div id="offers" class="offers"></div><div class="seller-actions"><button id="sellerRespondBtn" type="button" disabled>この条件で買い取る</button><button id="sellerSkipBtn" type="button" disabled>この人を見送る</button></div></section>
-<section class="stage" id="workshopStage"><div class="step"><span class="index">2</span><div><h2>店頭の在庫と値付け</h2><p>売れ残った商品は、価格の変更や状態に応じた修理ができます。修理には現金が必要です。</p></div></div><p class="hint">📦 買い取った品物はいったん倉庫へ。必要なら🔧修理台へ送り、整備後に🏬売場へ並べます。自動で売り出すことはありません。</p>
-<details class="stage-help"><summary>？ 倉庫・修理・販売のルール</summary><p>倉庫の商品は自動では売れません。修理台で整備し、売場へ移動すると販売対象になります。状態や価格によって売れやすさが変わります。</p></details><div class="warehouse-pages"><strong id="warehousePageLabel">倉庫 1ページ</strong><button type="button" id="warehousePrev">前の9点</button><button type="button" id="warehouseNext">次の9点</button></div><div id="inventory" class="scroll-table"></div><div class="workshop-layout"><div id="workbench" class="workbench"></div><div id="toolShop" class="tool-shop"></div></div><button id="soundToggleBtn" type="button" aria-pressed="false">🔇 作業効果音：OFF</button><button id="applyPlanBtn" type="button">値付け・修理・陳列を反映する</button>
+<section class="stage" id="inventoryStage" data-shop-screen="stock"><div class="step"><span class="index">2</span><div><h2>店頭の在庫と値付け</h2><p>売れ残った商品は、価格の変更や状態に応じた修理ができます。修理には現金が必要です。</p></div></div><p class="hint">📦 買い取った品物はいったん倉庫へ。必要なら🔧修理台へ送り、整備後に🏬売場へ並べます。自動で売り出すことはありません。</p>
+<details class="stage-help"><summary>？ 倉庫・修理・販売のルール</summary><p>倉庫の商品は自動では売れません。修理台で整備し、売場へ移動すると販売対象になります。状態や価格によって売れやすさが変わります。</p></details><div class="warehouse-pages"><strong id="warehousePageLabel">倉庫 1ページ</strong><button type="button" id="warehousePrev">前の9点</button><button type="button" id="warehouseNext">次の9点</button></div><div id="inventory" class="scroll-table"></div>
+<button id="applyPlanBtn" type="button" class="primary">値付け・修理台への移動・陳列を反映する</button>
+<p class="hint">修理台へ移した商品は、左の「修理」タブから道具を選んで整備できます。</p>
+</section>
+<section class="stage" id="workshopStage" data-shop-screen="repair" aria-labelledby="repairScreenTitle">
+<h2 id="repairScreenTitle">🔧 商品の修理と工具</h2>
+<p>修理中の商品を選び、所有している工具で進捗を進めます。修理したい商品は「在庫・売場」から修理台へ移してください。</p>
+<button type="button" data-shop-open="stock" class="repair-back-stock">📦 倉庫から商品を選ぶ →</button>
+<div class="workshop-layout"><div id="workbench" class="workbench"></div><div id="toolShop" class="tool-shop"></div></div><button id="soundToggleBtn" type="button" aria-pressed="false">🔇 作業効果音：OFF</button>
 <details class="equipment"><summary>修理機材を強化する（任意）</summary>
 <p id="equipmentLevel">修理設備 1 / 2</p><label class="toggle"><input id="equipmentUpgrade" type="checkbox"> 修理台を追加・機材を更新する（¥65,000）</label>
 <p class="hint">設備強化で1日の修理上限が2点になり、修理費も改善します。初期の基本機材は購入済みです。</p></details></section>
-<section class="stage open-day" id="openDayStage"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>来客の時間帯や販売結果を見て、倉庫・修理・価格を次の日に調整しよう。</p></div></div>
+<section class="stage open-day" id="openDayStage" data-shop-screen="day"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>来客の時間帯や販売結果を見て、倉庫・修理・価格を次の日に調整しよう。</p></div></div>
 <details class="stage-help"><summary>？ 営業時間と早送り</summary><p>営業10:00〜19:00は現実時間15分。営業開始後も価格や修理の予定を調整できます。売り手は来店時に一時停止して交渉します。買い手は到着した時点の価格と商品の状態で購入判断します。</p><p>一時停止・終了中は進みません。閉店までスキップすると残りの客は来店しません。既に成立した売買だけが残ります。</p></details>
 <div class="clock-panel"><div class="clock-head"><strong id="timeLabel">開店準備中｜10:00</strong><span id="clockProgress">0%</span></div>
 <progress id="clockBar" max="100" value="0" aria-label="本日の営業時間の進捗"></progress>
@@ -75,8 +92,8 @@
 <button id="fastForwardBtn" type="button">残りの客を見送って閉店（スキップ）</button></div>
 <p id="timeMessage" class="hint" role="status">時間は営業中だけ進み、保存して終了しても進みません。</p><div id="visitorLog" class="visitor-log" aria-live="polite"></div></div>
 <p id="budget" class="budget" role="status"></p></section>
-<section class="stage" aria-labelledby="reportTitle"><h2 id="reportTitle">今日の結果</h2><div id="report"></div></section>
-<section class="stage month-panel" id="monthPanel" hidden aria-labelledby="monthTitle">
+<section class="stage" id="dayReportStage" data-shop-screen="day" aria-labelledby="reportTitle"><h2 id="reportTitle">今日の結果</h2><div id="report"></div></section>
+<section class="stage month-panel" id="monthPanel" data-shop-screen="money" hidden aria-labelledby="monthTitle">
 <h2 id="monthTitle">今月の収益と返済</h2><p>30営業日分の経営成績です。返済金額を選んでから翌月へ進みます。</p>
 <div id="monthSummary" role="status"></div>
 <label class="month-amount" for="monthRepayment">今月、いくら借金の返済に充てますか？（円）
@@ -85,7 +102,7 @@
 <button id="monthSkipBtn" type="button">今月は返済せずに翌月へ</button></div>
 <p id="monthMessage" class="hint" role="alert"></p>
 </section>
-<section class="stage finance-panel" id="financeStage" aria-labelledby="financeTitle">
+<section class="stage finance-panel" id="financeStage" data-shop-screen="money" aria-labelledby="financeTitle">
 <div class="finance-heading"><span class="index">¥</span><div><h2 id="financeTitle">資金・返済</h2><p>残りの借入金、期限、支払い後に残る現金を確認できます。</p></div></div>
 <div id="financeSummary" class="finance-summary" role="status"></div>
 <div class="repay-controls"><label for="repayAmount">返済金額（円）<input type="number" id="repayAmount" min="1" step="1000" value="10000"></label>
@@ -95,10 +112,11 @@
 <p>支払額はまず未払利息、次に元金へ充当します。イージーは任意返済、ノーマルとハードは180営業日までの完済が目標です。利息は元金残高に対してのみ発生します。</p>
 <p>返済しても商品は売れません。次の家賃や修理費に必要な現金を残しておくのがおすすめです。</p>
 </details></section>
-<details class="extra"><summary>経営記録・セーブ管理（詳細）</summary><div class="extra-inner">
+<div id="recordsStage" data-shop-screen="records"><details class="extra"><summary>経営記録・セーブ管理（詳細）</summary><div class="extra-inner">
 <h2>直近12日の営業記録</h2><div id="history"></div>
 <div class="actions"><button id="exportBtn">セーブを書き出す</button><button id="importBtn">セーブを読み込む</button><button id="resetBtn" class="danger">最初からやり直す（モード再選択）</button><button id="restoreBtn" type="button">前回のプレイを復元</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
-<p>保存内容はこの端末内に保持します。開発中のため販売用MSIX・Windows実機検査はまだ未完了です。</p></div></details>
+<p>保存内容はこの端末内に保持します。開発中のため販売用MSIX・Windows実機検査はまだ未完了です。</p></div></details></div>
+</div></div>
 <footer>架空の店舗と需要のゲームです。外部送信・現実のお金の取引はありません。</footer>
 </main>
 </body></html>
