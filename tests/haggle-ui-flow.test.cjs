@@ -47,15 +47,18 @@ function boot(savedRaw){
  vm.runInNewContext(source,context,{filename:"src/app.js"});
  listeners.DOMContentLoaded();
  return {nodes,storage,key,lastDownload:()=>lastDownload,queryAll,
-  chooseFirst(bid){const offer=nodes.offers.children[0],checkbox=offer.children.at(-1).children[0];checkbox.checked=true;
+  chooseFirst(bid,mode="fixed",fallback="walk"){
+   const offer=nodes.offers.children[0],checkbox=offer.children.at(-1).children[0];checkbox.checked=true;
+   const control=queryAll("[data-offer-mode]")[0];control.value=mode;control.listeners.change();
    queryAll("[data-offer-bid]")[0].value=String(bid);
+   queryAll("[data-offer-fallback]")[0].value=fallback;
    listeners.change({target:{matches:()=>true}});
   },run(){nodes.openBtn.click();}};
 }
 test("customer may bid the ask and buy from the three-step GUI",()=>{
  const ui=boot(),ask=E.offers(E.initial())[0].ask;
  ui.chooseFirst(ask);
- assert.match(ui.nodes.budget.textContent,/仕入れ提示額の上限/);
+ assert.match(ui.nodes.budget.textContent,/必要資金の上限/);
  ui.run();
  const saved=JSON.parse(ui.storage.get(ui.key));
  assert.equal(saved.day,2);
@@ -65,7 +68,7 @@ test("customer may bid the ask and buy from the three-step GUI",()=>{
 });
 test("low-bid seller refusal is shown clearly and never debits the purchase price",()=>{
  const ui=boot();
- ui.chooseFirst(100);
+ ui.chooseFirst(100,"negotiate");
  ui.run();
  const saved=JSON.parse(ui.storage.get(ui.key));
  assert.equal(saved.day,2);
@@ -78,7 +81,7 @@ test("changing a purchase bid only updates the budget until opening the shop",()
  const ui=boot(),before=ui.storage.get(ui.key),ask=E.offers(E.initial())[0].ask;
  ui.chooseFirst(ask);
  const costAtAsk=ui.nodes.budget.textContent;
- ui.chooseFirst(100);
+ ui.chooseFirst(100,"negotiate");
  const costAtDiscount=ui.nodes.budget.textContent;
  assert.notEqual(costAtAsk,costAtDiscount);
  assert.equal(ui.storage.get(ui.key),before);
@@ -90,4 +93,14 @@ test("corrupted prior save is not replaced by showing a negotiation screen",()=>
  assert.equal(ui.nodes.openBtn.disabled,true);
  ui.run();
  assert.equal(ui.storage.get(ui.key),original);
+});
+
+test("player chooses counteroffer explicitly; it is never silently enabled",()=>{
+ const ui=boot(),bid=100;
+ ui.chooseFirst(bid,"negotiate","ask");
+ assert.match(ui.nodes.budget.textContent,/必要資金の上限/);
+ ui.run();
+ const saved=JSON.parse(ui.storage.get(ui.key));
+ assert.equal(saved.day,2);
+ assert.match(ui.nodes.report.textContent,/不成立 0件/);
 });
