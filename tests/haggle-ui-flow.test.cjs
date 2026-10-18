@@ -204,3 +204,66 @@ test("imported old saves remain debt-free, while malformed saves are not overwri
  assert.match(ui.nodes.financeSummary.textContent,/旧ルール/);
  assert.equal(JSON.parse(ui.storage.get(ui.key)).finance,undefined);
 });
+
+test("shop clock starts only on opening; pause freezes time and skip settles full sales day",()=>{
+ const ui=boot(),before=ui.storage.get(ui.key);
+ assert.match(ui.nodes.timeLabel.textContent,/10:00/);
+ assert.equal(ui.nodes.clockProgress.textContent,"0%");
+ ui.nodes.openBtn.click();
+ assert.equal(ui.nodes.openBtn.disabled,true);
+ assert.equal(ui.nodes.pauseBtn.disabled,false);
+ assert.equal(ui.storage.get(ui.key),before,"time progression must not mutate financial state");
+ ui.simulate(5000);
+ const progressed=JSON.parse(ui.storage.get("used-item-shop:active-time:v1"));
+ assert.equal(progressed.elapsedMs,5000);
+ assert.equal(progressed.paused,false);
+ ui.pause();
+ const paused=JSON.parse(ui.storage.get("used-item-shop:active-time:v1"));
+ assert.equal(paused.paused,true);
+ ui.simulate(5000);
+ assert.equal(JSON.parse(ui.storage.get("used-item-shop:active-time:v1")).elapsedMs,5000);
+ ui.nodes.fastForwardBtn.click();
+ assert.equal(JSON.parse(ui.storage.get(ui.key)).day,2);
+ assert.equal(JSON.parse(ui.storage.get(ui.key)).history.length,1);
+ assert.match(ui.nodes.timeLabel.textContent,/10:00/);
+});
+test("paused time survives reload without offline catch-up",()=>{
+ const ui=boot(undefined,{mode:"normal"});
+ ui.nodes.openBtn.click();
+ ui.simulate(5000);ui.pause();
+ const raw=ui.storage.get(ui.key),timeRaw=ui.storage.get("used-item-shop:active-time:v1");
+ const again=boot(raw,{timeRaw});
+ assert.equal(JSON.parse(again.storage.get("used-item-shop:active-time:v1")).elapsedMs,5000);
+ assert.match(again.nodes.timeLabel.textContent,/10:02/);
+ assert.equal(again.nodes.pauseBtn.disabled,true);
+ assert.equal(JSON.parse(again.storage.get(again.key)).day,1);
+});
+test("month 1 report asks how much to repay; choosing zero unblocks the next day",()=>{
+ let state=E.startGame("normal",21);
+ for(let i=0;i<30;i++)state=E.advance(state,{buy:[],prices:[]}).state;
+ const ui=boot(JSON.stringify(state));
+ assert.equal(ui.nodes.monthPanel.hidden,false);
+ assert.match(ui.nodes.monthSummary.textContent,/1か月目/);
+ assert.match(ui.nodes.monthSummary.textContent,/家賃/);
+ assert.equal(ui.nodes.openBtn.disabled,true);
+ ui.nodes.monthSkipBtn.click();
+ const next=JSON.parse(ui.storage.get(ui.key));
+ assert.equal(next.pendingMonth,undefined);
+ assert.equal(next.monthDecisions[0].amount,0);
+ assert.equal(next.finance.principal,700000);
+ assert.equal(ui.nodes.monthPanel.hidden,true);
+ assert.equal(ui.nodes.openBtn.disabled,false);
+});
+test("month-end repayment is only made when player enters and confirms the amount",()=>{
+ let state=E.startGame("hard",21);
+ for(let i=0;i<30;i++)state=E.advance(state,{buy:[],prices:[]}).state;
+ const ui=boot(JSON.stringify(state)),oldCash=state.cash;
+ ui.nodes.monthRepayment.value="17000";
+ ui.nodes.monthPayBtn.click();
+ const next=JSON.parse(ui.storage.get(ui.key));
+ assert.equal(next.cash,oldCash-17000);
+ assert.equal(next.finance.interestDue,0);
+ assert.equal(next.finance.principal,690000);
+ assert.equal(next.monthDecisions[0].amount,17000);
+ assert.equal(next.pendingMonth,undefined);
+});
