@@ -60,3 +60,25 @@ test("corrupted sales totals or nonsequential day records cannot be restored",()
  const broken=JSON.parse(JSON.stringify(next));broken.history[0].day=99;
  assert.throws(()=>S.validate(broken),/履歴/);
 });
+
+test("repairing a used item upgrades grade, consumes cash and capitalizes its cost",()=>{
+ let s=S.initial(5),o=S.offers(s)[0];
+ s=S.advance(s,{buy:[{id:o.id,price:999999}],prices:[]}).state;
+ const old=s.inventory[0];assert.notEqual(old.grade,'A');
+ const repaired=S.advance(s,{buy:[],prices:[{id:old.id,price:999999}],repairs:[old.id]});
+ const expense=Math.max(100,Math.round(old.fair*0.12/100)*100);
+ assert.equal(repaired.report.repairSpending,expense);
+ assert.equal(repaired.state.cash,s.cash-S.RENT-expense);
+ const item=repaired.state.inventory[0];
+ assert.equal(item.cost,old.cost+expense);
+ assert.ok(item.fair>old.fair);
+ assert.notEqual(item.grade,old.grade);
+ assert.equal(s.inventory[0].grade,old.grade);
+});
+test("invalid or duplicate repair attempts never debit cash",()=>{
+ let s=S.initial(5),o=S.offers(s)[0];s=S.advance(s,{buy:[{id:o.id,price:999999}],prices:[]}).state;
+ const before=JSON.stringify(s),id=s.inventory[0].id;
+ assert.throws(()=>S.advance(s,{buy:[],prices:[],repairs:[id,id]}),/重複/);
+ assert.throws(()=>S.advance(s,{buy:[],prices:[],repairs:[99999]}),/修理/);
+ assert.equal(JSON.stringify(s),before);
+});
