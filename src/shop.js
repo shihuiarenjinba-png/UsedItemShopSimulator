@@ -238,7 +238,7 @@
   function customerArrivals(state){
     validate(state);
     const weekend=[0,6].includes((state.day-1)%7);
-    const rate=2.8+state.reputation/40+(weekend?1.1:0);
+    const rate=5.5+state.reputation/25+(weekend?1.5:0);
     // Inverse-CDF sampling: non-network, reproducible visitor count.
     let count=0,p=Math.exp(-rate),cdf=p,roll=random(state.seed,state.day,4000);
     while(roll>cdf&&count<18){count++;p*=rate/count;cdf+=p;}
