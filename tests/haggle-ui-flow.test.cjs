@@ -104,3 +104,27 @@ test("player chooses counteroffer explicitly; it is never silently enabled",()=>
  assert.equal(saved.day,2);
  assert.match(ui.nodes.report.textContent,/不成立 0件/);
 });
+
+test("purchased goods appear in warehouse with a manual listing checkbox",()=>{
+ const ui=boot(),ask=E.offers(E.initial())[0].ask;
+ ui.chooseFirst(ask);
+ ui.run();
+ assert.match(ui.nodes.inventory.textContent,/倉庫/);
+ assert.equal(ui.queryAll("[data-list-id]").length,1);
+ assert.match(ui.nodes.visitorSchedule.textContent,/来店客/);
+ assert.match(ui.nodes.report.textContent,/来店者/);
+ const checkbox=ui.queryAll("[data-list-id]")[0];checkbox.checked=true;
+ const before=ui.storage.get(ui.key);
+ assert.equal(ui.storage.get(ui.key),before);
+ ui.run();
+ assert.equal(JSON.parse(ui.storage.get(ui.key)).day,3);
+});
+test("explicit machine upgrade charges cash and exposes repaired workbench capacity",()=>{
+ const ui=boot(),initial=E.initial();
+ ui.nodes.equipmentUpgrade.checked=true;
+ ui.run();
+ const state=JSON.parse(ui.storage.get(ui.key));
+ assert.equal(state.equipmentLevel,2);
+ assert.equal(state.cash,initial.cash-E.RENT-E.EQUIPMENT_UPGRADE_COST);
+ assert.match(ui.nodes.equipmentLevel.textContent,/2 \/ 2/);
+});
