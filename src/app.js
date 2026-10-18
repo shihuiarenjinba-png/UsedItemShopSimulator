@@ -21,7 +21,7 @@
    if(document.hidden){stopClock();updateClock();return;}
    const now=monotonic(),delta=Math.min(5000,Math.max(0,Math.floor(now-lastTick)));lastTick=now;
    if(delta>0)clock=T.tick(clock,delta);
-   if(clock.elapsedMs===T.DAY_MS){stopClock();finishDay();return;}
+   if(clock.elapsedMs===T.DAY_MS){finishDay();return;}
    saveClock();updateClock();
  }
  function startTimer(){
@@ -39,8 +39,8 @@
    $('openBtn').textContent=clock.elapsedMs?'営業を再開':'営業開始（20分）';
    $('pauseBtn').disabled=blocked||clock.paused;
    $('fastForwardBtn').disabled=blocked;
-   $('timeMessage').textContent=clockNotice||(state.pendingMonth?'今月の決算を確認し、返済額を決めてください。':
-     'ゲーム終了中と一時停止中は進みません。早送りしても来客抽選は短縮されません。');
+   $('timeMessage').textContent=state.pendingMonth?'月末の返済判断を完了してください。':(clockNotice||(state.pendingMonth?'今月の決算を確認し、返済額を決めてください。':
+     'ゲーム終了中と一時停止中は進みません。早送りしても来客抽選は短縮されません。'));
  }
  function beginDay(){
    if(recoveryBlocked||onboardingRequired||state.pendingMonth||state.day>180)return;
@@ -308,6 +308,7 @@
      '壊れたセーブの原文を別枠へ保管してから、新しい開業モード選択へ戻ります。よろしいですか？':
      '現在のプレイを別枠にバックアップし、開業モードを選び直しますか？';
    if(!confirm(warning))return;
+   stopClock();
    try{
      const original=recoveryBlocked?originalRaw:localStorage.getItem(KEY);
      if(original!==null)localStorage.setItem(BACKUP_KEY,original);
@@ -316,7 +317,7 @@
      else localStorage.removeItem(BACKUP_TIME_KEY);
      localStorage.removeItem(KEY);localStorage.removeItem(TIME_KEY);
    }catch(error){alert('以前のセーブを保護できないためリセットしませんでした：'+error.message);return;}
-   stopClock();recoveryBlocked=false;originalRaw=null;state=E.initial();clock=T.initial(state.day);onboardingRequired=true;lastReport=null;
+   recoveryBlocked=false;originalRaw=null;state=E.initial();clock=T.initial(state.day);onboardingRequired=true;lastReport=null;
    repayNotice='';notice='';$('openingModeEasy').checked=true;
    $('openingModeNormal').checked=false;$('openingModeHard').checked=false;
    $('openingError').textContent='';refresh();
@@ -335,8 +336,8 @@
      else localStorage.removeItem(BACKUP_KEY);
      if(originalTime!==null)localStorage.setItem(BACKUP_TIME_KEY,originalTime);
      else localStorage.removeItem(BACKUP_TIME_KEY);
-     localStorage.setItem(KEY,raw);localStorage.setItem(TIME_KEY,JSON.stringify(restoredTime));
-     stopClock();state=restored;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
+     stopClock();localStorage.setItem(KEY,raw);localStorage.setItem(TIME_KEY,JSON.stringify(restoredTime));
+     state=restored;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
      repayNotice='';notice='前回の進行を復元しました。';refresh();
    }catch(error){alert('セーブを復元できませんでした：'+error.message);}
  }
