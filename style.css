@@ -40,3 +40,5 @@
 .stage-help summary{cursor:pointer;color:#f2d69b;font-weight:750}
 .stage-help p{color:#d3dcda;font-size:14px}
 @media(max-width:600px){.opening{padding:10px}.opening-card{padding:15px}.repay-controls{align-items:stretch}.repay-controls label,.repay-controls input{width:100%;max-width:none}.tab-links a{flex:1 1 140px;text-align:center}}
+
+.finance-heading{display:flex;gap:12px;align-items:start;margin-bottom:14px}.finance-heading h2{margin:0}.finance-heading p{color:var(--muted);margin:2px 0}.finance-heading .index{display:grid;place-items:center;flex:none;border-radius:99px;background:#e5c07b;color:#13212a;width:35px;height:35px;font-weight:900}
