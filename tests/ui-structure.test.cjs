@@ -12,6 +12,6 @@ test("price changes and corrupted saves cannot be silently overwritten",()=>{
  const app=fs.readFileSync(path.join(__dirname,"../src/app.js"),"utf8");
  assert.match(app,/recoveryBlocked=true/);
  assert.match(app,/if\(recoveryBlocked\)return false/);
- assert.match(app,/元データを退避しましたか/);
+ assert.match(app,/BACKUP_KEY/);assert.match(app,/localStorage\.removeItem\(KEY\)/);assert.match(app,/resetToNewGame/);
  assert.match(app,/E\.advance\(state,plan\(\)\)/);
 });
