@@ -66,12 +66,23 @@
     if(state.day>180) throw Error('180日間の経営を完走しました。');
     if(!plan || !Array.isArray(plan.buy)||!Array.isArray(plan.prices)) throw Error('仕入計画が不正です。');
     const avail=new Map(offers(state).map(x=>[x.id,x]));
-    const purchases=[],selected=new Set();
+    const purchases=[],selected=new Set(),rejectedOffers=[];
     for(const choice of plan.buy){
       if(!choice || !avail.has(choice.id) || selected.has(choice.id)) throw Error('仕入先の指定が重複・不正です。');
       selected.add(choice.id);
       const offer=avail.get(choice.id);
-      purchases.push({...offer,cost:offer.ask,price:integer(choice.price,'値付け',1,1000000)});
+      // Old plans without a bid remain valid at the full asking price.
+      const bid=integer(choice.bid??offer.ask,'買取提示額',100,1000000);
+      const price=integer(choice.price,'値付け',1,1000000);
+      if(bid>offer.ask) throw Error('買取提示額は売り手の希望額以下にしてください。');
+      // The seller's private reserve price is determined before decisions,
+      // so rerunning the same day cannot obtain a better random negotiation roll.
+      const reserve=Math.max(100,Math.round(offer.ask*(0.72+0.20*random(state.seed,state.day,600+offer.id))/100)*100);
+      if(bid<reserve){
+        rejectedOffers.push({id:offer.id,name:offer.name,bid,ask:offer.ask});
+      }else{
+        purchases.push({...offer,cost:bid,price});
+      }
     }
     if(state.inventory.length+purchases.length>CAPACITY) throw Error('店内の在庫スペースが不足しています。');
     const changes=new Map();
@@ -109,7 +120,8 @@
     const profit=revenue-cogs-RENT;
     const cash=state.cash-procurement-repairSpending-RENT+revenue;
     integer(cash,'残高',0,1e10);
-    const report={day:state.day,revenue,procurement,repairSpending,repaired:repairIds.length,cogs,rent:RENT,profit,cash,inventory:nextInventory.length,sold,bought:purchases.length,soldItems};
+    const report={day:state.day,revenue,procurement,repairSpending,repaired:repairIds.length,cogs,rent:RENT,profit,cash,inventory:nextInventory.length,sold,bought:purchases.length,
+      rejectedOffers,negotiationSavings:purchases.reduce((n,p)=>n+p.ask-p.cost,0),soldItems};
     const next={...state,day:state.day+1,cash,inventory:nextInventory,totalSold:state.totalSold+sold,
       reputation:Math.min(100,Math.max(0,state.reputation+(sold>=2?1:(nextInventory.length>10&&sold===0?-1:0)))),
       history:state.history.concat([{day:report.day,profit:report.profit,cash:report.cash,sold:report.sold}])};
