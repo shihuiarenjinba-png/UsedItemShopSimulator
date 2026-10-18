@@ -240,7 +240,7 @@
     const weekend=[0,6].includes((state.day-1)%7);
     // Three scheduled sellers plus ~4.6 ordinary shoppers make ~7–8 total visitors at reputation 55.
     // Weighted iid arrival times conditional on Poisson count form a non-homogeneous Poisson process.
-    const rate=3.5+state.reputation/50+(weekend?1.0:0);
+    const rate=2.8+state.reputation/50+(weekend?.75:0);
     // Inverse-CDF sampling: non-network, reproducible visitor count.
     let count=0,p=Math.exp(-rate),cdf=p,roll=random(state.seed,state.day,4000);
     while(roll>cdf&&count<18){count++;p*=rate/count;cdf+=p;}
