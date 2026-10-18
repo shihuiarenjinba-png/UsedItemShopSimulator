@@ -161,7 +161,7 @@ test("repair workbench accepts purchased tools and updates visible dust and prog
  const live=L.configure(state,L.initial(state),{repairs:[state.inventory[0].id]});
  state={...state,liveSession:live};
  const ui=boot(JSON.stringify(state));
- assert.match(ui.nodes.workbench.textContent,/修理進捗 0%/);
+ assert.match(ui.nodes.workbench.textContent,/整備進捗 0%/);
  const root=ui.nodes.toolShop;
  const tools=root.children[1]; // heading, controls
  const brush=tools.children[0];
