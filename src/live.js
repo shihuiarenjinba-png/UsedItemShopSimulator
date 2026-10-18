@@ -25,12 +25,12 @@
   const state=E.validate(base);
   check(state.day<=180&&!state.pendingMonth,"営業できる日ではありません。");
   const inv=state.inventory.map(p=>{
-   if(p.zone==="workshop"&&p.repairReadyDay<=state.day){const {repairReadyDay,...r}=p;return {...r,zone:"warehouse"};}
+   if(p.zone==="workshop"&&p.repairProgress===undefined&&p.repairReadyDay<=state.day){const {repairReadyDay,...r}=p;return {...r,zone:"warehouse"};}
    return copy(p);
   });
   return {version:1,day:state.day,inventory:inv,cash:state.cash,cursor:0,minute:OPEN,
    pendingSeller:null,customers:[],negotiations:[],rejectedOffers:[],soldItems:[],
-   logs:[],ownedTools:["brush"],equipmentLevel:state.equipmentLevel??1,
+   logs:[],ownedTools:[...(state.ownedTools??["brush"])],equipmentLevel:state.equipmentLevel??1,
    revenue:0,cogs:0,procurement:0,repairSpending:0,equipmentCost:0,sold:0,bought:0,repaired:0,
    expectedSales:0,skipped:false};
  }
@@ -48,6 +48,8 @@
   for(const k of ["revenue","cogs","procurement","repairSpending","equipmentCost","sold","bought","repaired"]){
    whole(input[k],0,1e10,"売買台帳が不正です。");
   }
+  check(input.cash===base.cash-input.procurement-input.repairSpending-input.equipmentCost+input.revenue,
+    "現金と売買台帳の金額が一致しません。");
   const seen=new Set();
   for(const i of input.inventory){
    check(i&&Number.isSafeInteger(i.id)&&!seen.has(i.id)&&E.TYPES[i.type]&&E.GRADES[i.grade],"営業中の在庫が不正です。");
@@ -205,7 +207,12 @@
  function finish(base,raw){
   const s=validate(base,raw);
   const skipped=Math.max(0,schedule(base).length-s.cursor);
-  const inventory=s.inventory.map(x=>E.ageItem(x));
+  const inventory=s.inventory.map(x=>{
+   const aged=E.ageItem(x);
+   if(aged.zone==="workshop"&&aged.repairProgress!==undefined&&aged.repairProgress<100)
+    aged.repairReadyDay=base.day+2; // Work remains on the bench until the player completes it.
+   return aged;
+  });
   const interestCharged=base.finance&&base.finance.mode==="hard"&&base.day%E.INTEREST_PERIOD===0?
    Math.round(base.finance.principal*E.FINANCE_MODES.hard.rateBps/10000):0;
   const finance=base.finance?{
@@ -227,7 +234,7 @@
    expectedSales:Math.round(s.expectedSales*100)/100,
    negotiationSavings:s.negotiations.reduce((n,o)=>n+(o.cost?o.ask-o.cost:0),0),
    soldItems:s.soldItems,skippedVisitors:skipped,events:s.logs};
-  const next={...base,day:base.day+1,cash,inventory,equipmentLevel:s.equipmentLevel,
+  const next={...base,day:base.day+1,cash,inventory,equipmentLevel:s.equipmentLevel,ownedTools:s.ownedTools,
    totalSold:base.totalSold+s.sold,...(finance?{finance}:{}),
    reputation:Math.min(100,Math.max(0,base.reputation+(s.sold>=2?1:(inventory.length>10&&s.sold===0?-1:0)))),
    history:base.history.concat([{day:base.day,profit,cash,sold:s.sold,revenue:s.revenue,
