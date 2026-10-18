@@ -3,33 +3,33 @@ const test=require("node:test"),assert=require("node:assert/strict");
 const E=require("../src/shop.js"),T=require("../src/time.js");
 const idle={buy:[],prices:[]};
 const go=(raw,to)=>{let s=raw;while(s.day<to){if(s.pendingMonth)s=E.closeMonthlyReview(s,0).state;s=E.advance(s,idle).state;}return s;};
-test("20 real minutes maps exactly to 10:00–19:00 with a deterministic pause",()=>{
+test("15 real minutes maps exactly to 10:00–19:00 with a deterministic pause",()=>{
  let t=T.initial(1);
- assert.equal(T.DAY_MS,1200000);assert.equal(T.format(t),"10:00");
+ assert.equal(T.DAY_MS,900000);assert.equal(T.format(t),"10:00");
  assert.equal(T.tick(t,60000).elapsedMs,0);
- t=T.running(t);t=T.tick(t,600000);
+ t=T.running(t);t=T.tick(t,450000);
  assert.equal(T.format(t),"14:30");
  assert.equal(T.progress(t),50);
  t=T.paused(t);
- assert.equal(T.tick(t,600000).elapsedMs,600000);
+ assert.equal(T.tick(t,450000).elapsedMs,450000);
  assert.equal(T.format(T.finish(t)),"19:00");
  assert.equal(T.progress(T.finish(t)),100);
 });
 test("saved session reopens paused and elapsed time does not grow while offline",()=>{
- let t=T.tick(T.running(T.initial(9)),840000);
+ let t=T.tick(T.running(T.initial(9)),630000);
  const serialized=JSON.stringify(t);
  t=T.validate(JSON.parse(serialized),9);
  assert.equal(t.paused,true);
- assert.equal(t.elapsedMs,840000);
+ assert.equal(t.elapsedMs,630000);
  assert.equal(T.format(t),"16:18");
  assert.deepEqual(T.tick(t,180000),t);
  assert.throws(()=>T.validate(JSON.parse(serialized),10),/時計|セーブ/);
  assert.throws(()=>T.validate({...t,elapsedMs:-1},9));
 });
-test("fast-forward and normal 20-minute end settle the same underlying economy",()=>{
+test("fast-forward and normal 15-minute end settle the same underlying economy",()=>{
  const s=E.startGame("normal",100),p={buy:[],prices:[]};
  const fast=T.finish(T.initial(s.day));
- let timed=T.running(T.initial(s.day));for(let i=0;i<120;i++)timed=T.tick(timed,10000);
+ let timed=T.running(T.initial(s.day));for(let i=0;i<90;i++)timed=T.tick(timed,10000);
  assert.equal(timed.elapsedMs,fast.elapsedMs);
  assert.deepEqual(E.advance(s,p),E.advance(E.validate(JSON.parse(JSON.stringify(s))),p));
 });
@@ -104,4 +104,16 @@ test("monthly repayments are not forced when cash must be retained for repairs a
  const stillPending=E.closeMonthlyReview(s,0).state;
  assert.equal(stillPending.finance.principal,s.finance.principal);
  assert.equal(stillPending.cash,s.cash);
+});
+
+test("existing 20-minute mid-day save migrates to the same game clock time",()=>{
+ const old={day:5,elapsedMs:840000,paused:false}; // 70% of 1,200,000 ms
+ const migrated=T.validate(old,5);
+ assert.equal(migrated.elapsedMs,630000);
+ assert.equal(migrated.durationMs,900000);
+ assert.equal(T.format(migrated),"16:18");
+ assert.equal(migrated.paused,true);
+ assert.deepEqual(T.validate(migrated,5),migrated);
+ assert.equal(T.validate({day:5,elapsedMs:1200000,paused:true},5).elapsedMs,900000);
+ assert.throws(()=>T.validate({...old,durationMs:2000000},5),/長さ/);
 });
