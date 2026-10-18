@@ -406,7 +406,7 @@
    for(const tool of L.TOOLS){
      const have=owned.includes(tool.id);
      const button=el('button','tool-button',tool.icon+' '+tool.name+
-       (have?' ｜ 所有中':' ｜ '+yen(tool.price)+'で購入'));
+       (have?(item?' ｜ この工具で修理':' ｜ 所有中（修理品を選択）'):' ｜ '+yen(tool.price)+'で購入'));
      button.type='button';
      button.disabled=have&&!item;
      button.addEventListener('click',()=>{if(have)useTool(tool.id);else buyTool(tool.id);});
