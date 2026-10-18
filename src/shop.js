@@ -10,7 +10,8 @@
     camera: {name:'中古カメラ', base:36000, interest:0.52, elasticity:1.8, wearRate:1.0},
     console: {name:'ゲーム機', base:26000, interest:0.66, elasticity:2.5, wearRate:1.25},
     audio: {name:'オーディオ', base:19000, interest:0.46, elasticity:2.0, wearRate:1.0},
-    book: {name:'希少本', base:9000, interest:0.38, elasticity:1.4, wearRate:0.7}
+    book: {name:'希少本', base:9000, interest:0.38, elasticity:1.4, wearRate:0.7},
+    car: {name:'中古車', base:520000, interest:0.18, elasticity:2.2, wearRate:1.4}
   });
   const GRADES = Object.freeze({A:1.16,B:1,C:0.72});
   const RENT = 3500, CAPACITY = 18;
@@ -47,10 +48,12 @@
   }
   function offers(state) {
     validate(state);
-    const keys=Object.keys(TYPES);
+    const keys=Object.keys(TYPES).filter(x=>x!=='car');
     return Array.from({length:3},(_,i)=>{
       const id=state.day*10+i+1;
-      const type=keys[Math.floor(random(state.seed,state.day,100+i)*keys.length)];
+      // Cars are occasional higher-capital offers unlocked after 20 shop days.
+      const type=state.day>=21&&i===2&&random(state.seed,state.day,930)>.52?
+        'car':keys[Math.floor(random(state.seed,state.day,100+i)*keys.length)];
       const grade=['A','B','C'][Math.floor(random(state.seed,state.day,200+i)*3)];
       const fair=Math.round(TYPES[type].base*GRADES[grade]*(0.88+0.24*random(state.seed,state.day,300+i)));
       const ask=Math.max(100,Math.round(fair*(0.43+0.30*random(state.seed,state.day,400+i))/100)*100);
