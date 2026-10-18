@@ -2,8 +2,8 @@
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const E=require("../src/shop.js");
 const source=fs.readFileSync(path.join(__dirname,"../src/app.js"),"utf8");
-const ID_LIST=["day","cash","stock","sold","offers","inventory","budget","openBtn","report","history","resetBtn","exportBtn","importBtn","importFile","equipmentUpgrade","equipmentLevel","visitorSchedule"];
-function boot(savedRaw){
+const ID_LIST=["day","cash","stock","sold","offers","inventory","budget","openBtn","report","history","resetBtn","exportBtn","importBtn","importFile","equipmentUpgrade","equipmentLevel","visitorSchedule","openingScreen","gameShell","openingModeEasy","openingModeNormal","openingModeHard","openingError","startGameBtn","financeSummary","repayAmount","repayBtn","repayAllBtn","repayMessage","restoreBtn"];
+function boot(savedRaw,{mode="easy",start=true}={}){
  const nodes={},listeners={},storage=new Map(),key="used-item-shop:save:v1";
  if(savedRaw!==undefined)storage.set(key,savedRaw);
  class Element{
@@ -42,10 +42,16 @@ function boot(savedRaw){
  const URL={createObjectURL(blob){lastDownload=blob.parts.join("");return "blob:test"},revokeObjectURL(){}};
  const context={window:{UsedItemShop:E},document,localStorage:{
   getItem:id=>storage.get(id)??null,
-  setItem:(id,v)=>storage.set(id,v)
+  setItem:(id,v)=>storage.set(id,v),removeItem:id=>storage.delete(id)
  },Blob,URL,setTimeout:()=>{},alert:()=>{},confirm:()=>true};
  vm.runInNewContext(source,context,{filename:"src/app.js"});
  listeners.DOMContentLoaded();
+ if(start&&savedRaw===undefined){
+  nodes.openingModeEasy.checked=mode==="easy";
+  nodes.openingModeNormal.checked=mode==="normal";
+  nodes.openingModeHard.checked=mode==="hard";
+  nodes.startGameBtn.click();
+ }
  return {nodes,storage,key,lastDownload:()=>lastDownload,queryAll,
   chooseFirst(bid,mode="fixed",fallback="walk"){
    const offer=nodes.offers.children[0],checkbox=offer.children.at(-1).children[0];checkbox.checked=true;
