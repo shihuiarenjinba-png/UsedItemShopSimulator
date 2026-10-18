@@ -6,7 +6,7 @@
 <title>中古品店 — 小さな店から始める経営</title>
 <link rel="stylesheet" href="./style.css">
 <script defer src="./src/shop.js"></script>
-<script defer src="./src/time.js"></script><script defer src="./src/app.js"></script>
+<script defer src="./src/time.js"></script><script defer src="./src/live.js"></script><script defer src="./src/app.js"></script>
 </head>
 <body>
 <section id="openingScreen" class="opening" aria-labelledby="openingTitle" hidden>
@@ -36,21 +36,21 @@
 </nav>
 <section class="stage" id="warehouseStage">
 <div class="step"><span class="index">1</span><div><h2>今日の持ち込み商品</h2><p>品物を見極め、買取提示額と店頭販売価格を決める。</p></div></div>
-<details class="stage-help"><summary>？ 仕入と交渉のルール</summary><p>提示額を安くすると買取に成功しにくくなります。希望額で買うか、交渉するかを選びます。失敗時の追加購入は事前に選択した場合のみです。</p></details><p id="visitorSchedule" class="budget">今日の来客予定を確認中...</p><div id="offers" class="offers"></div></section>
+<details class="stage-help"><summary>？ 仕入と交渉のルール</summary><p>提示額を安くすると買取に成功しにくくなります。希望額で買うか、交渉するかを選びます。失敗時の追加購入は事前に選択した場合のみです。</p></details><p id="visitorSchedule" class="budget">今日の来客予定を確認中...</p><div id="offers" class="offers"></div><div class="seller-actions"><button id="sellerRespondBtn" type="button" disabled>この条件で買い取る</button><button id="sellerSkipBtn" type="button" disabled>この人を見送る</button></div></section>
 <section class="stage" id="workshopStage"><div class="step"><span class="index">2</span><div><h2>店頭の在庫と値付け</h2><p>売れ残った商品は、価格の変更や状態に応じた修理ができます。修理には現金が必要です。</p></div></div><p class="hint">📦 買い取った品物はいったん倉庫へ。必要なら🔧修理台へ送り、整備後に🏬売場へ並べます。自動で売り出すことはありません。</p>
-<details class="stage-help"><summary>？ 倉庫・修理・販売のルール</summary><p>倉庫の商品は自動では売れません。修理台で整備し、売場へ移動すると販売対象になります。状態や価格によって売れやすさが変わります。</p></details><div id="inventory" class="scroll-table"></div>
+<details class="stage-help"><summary>？ 倉庫・修理・販売のルール</summary><p>倉庫の商品は自動では売れません。修理台で整備し、売場へ移動すると販売対象になります。状態や価格によって売れやすさが変わります。</p></details><div class="warehouse-pages"><strong id="warehousePageLabel">倉庫 1ページ</strong><button type="button" id="warehousePrev">前の9点</button><button type="button" id="warehouseNext">次の9点</button></div><div id="inventory" class="scroll-table"></div><div id="workbench" class="workbench"></div><div id="toolShop" class="tool-shop"></div><button id="applyPlanBtn" type="button">値付け・修理・陳列を反映する</button>
 <details class="equipment"><summary>修理機材を強化する（任意）</summary>
 <p id="equipmentLevel">修理設備 1 / 2</p><label class="toggle"><input id="equipmentUpgrade" type="checkbox"> 修理台を追加・機材を更新する（¥65,000）</label>
 <p class="hint">設備強化で1日の修理上限が2点になり、修理費も改善します。初期の基本機材は購入済みです。</p></details></section>
 <section class="stage open-day" id="openDayStage"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>来客の時間帯や販売結果を見て、倉庫・修理・価格を次の日に調整しよう。</p></div></div>
-<details class="stage-help"><summary>？ 営業時間と早送り</summary><p>営業10:00〜19:00は現実時間15分。営業開始後も価格や修理の予定を調整できます。現段階では買取・売却の抽選と支出確定は閉店時にまとめて行います。</p><p>一時停止・終了中は進みません。閉店まで早送りしても、来客数や売上判定は同一条件なら変わりません。</p></details>
+<details class="stage-help"><summary>？ 営業時間と早送り</summary><p>営業10:00〜19:00は現実時間15分。営業開始後も価格や修理の予定を調整できます。売り手は来店時に一時停止して交渉します。買い手は到着した時点の価格と商品の状態で購入判断します。</p><p>一時停止・終了中は進みません。閉店までスキップすると残りの客は来店しません。既に成立した売買だけが残ります。</p></details>
 <div class="clock-panel"><div class="clock-head"><strong id="timeLabel">開店準備中｜10:00</strong><span id="clockProgress">0%</span></div>
 <progress id="clockBar" max="100" value="0" aria-label="本日の営業時間の進捗"></progress>
 <div class="clock-actions">
 <button id="openBtn" class="primary" type="button">営業開始（15分）</button>
 <button id="pauseBtn" type="button" disabled>一時停止</button>
-<button id="fastForwardBtn" type="button">閉店まで早送りして結果を見る</button></div>
-<p id="timeMessage" class="hint" role="status">時間は営業中だけ進み、保存して終了しても進みません。</p></div>
+<button id="fastForwardBtn" type="button">残りの客を見送って閉店（スキップ）</button></div>
+<p id="timeMessage" class="hint" role="status">時間は営業中だけ進み、保存して終了しても進みません。</p><div id="visitorLog" class="visitor-log" aria-live="polite"></div></div>
 <p id="budget" class="budget" role="status"></p></section>
 <section class="stage" aria-labelledby="reportTitle"><h2 id="reportTitle">今日の結果</h2><div id="report"></div></section>
 <section class="stage month-panel" id="monthPanel" hidden aria-labelledby="monthTitle">
