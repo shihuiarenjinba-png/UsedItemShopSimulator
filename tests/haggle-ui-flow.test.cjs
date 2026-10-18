@@ -234,7 +234,7 @@ test("paused time survives reload without offline catch-up",()=>{
  const raw=ui.storage.get(ui.key),timeRaw=ui.storage.get("used-item-shop:active-time:v1");
  const again=boot(raw,{timeRaw});
  assert.equal(JSON.parse(again.storage.get("used-item-shop:active-time:v1")).elapsedMs,5000);
- assert.match(again.nodes.timeLabel.textContent,/10:02/);
+ assert.match(again.nodes.timeLabel.textContent,/10:03/);
  assert.equal(again.nodes.pauseBtn.disabled,true);
  assert.equal(JSON.parse(again.storage.get(again.key)).day,1);
 });
@@ -266,4 +266,16 @@ test("month-end repayment is only made when player enters and confirms the amoun
  assert.equal(next.finance.principal,690000);
  assert.equal(next.monthDecisions[0].amount,17000);
  assert.equal(next.pendingMonth,undefined);
+});
+
+test("old 20-minute clock is migrated without dropping session or fast-forward results",()=>{
+ const original=E.startGame("easy",22);
+ const clock=JSON.stringify({day:1,elapsedMs:600000,paused:true});
+ const ui=boot(JSON.stringify(original),{timeRaw:clock});
+ const stored=JSON.parse(ui.storage.get("used-item-shop:active-time:v1"));
+ assert.equal(stored.elapsedMs,450000);
+ assert.equal(stored.durationMs,900000);
+ assert.match(ui.nodes.timeLabel.textContent,/14:30/);
+ ui.run();
+ assert.equal(JSON.parse(ui.storage.get(ui.key)).day,2);
 });
