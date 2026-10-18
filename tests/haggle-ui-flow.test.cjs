@@ -75,7 +75,7 @@ test("low-bid seller refusal is shown clearly and never debits the purchase pric
  assert.equal(saved.inventory.length,0);
  assert.equal(saved.cash,E.initial().cash-E.RENT);
  assert.match(ui.nodes.report.textContent,/不成立 1件/);
- assert.match(ui.nodes.report.textContent,/断られました/);
+ assert.match(ui.nodes.report.textContent,/購入できませんでした/);
 });
 test("changing a purchase bid only updates the budget until opening the shop",()=>{
  const ui=boot(),before=ui.storage.get(ui.key),ask=E.offers(E.initial())[0].ask;
