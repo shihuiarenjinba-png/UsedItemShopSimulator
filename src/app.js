@@ -250,6 +250,7 @@
    $('repayBtn').addEventListener('click',()=>repayRequested(false));
    $('repayAllBtn').addEventListener('click',()=>repayRequested(true));
    $('restoreBtn').addEventListener('click',restoreLastGame);
+   $('restoreFromOpeningBtn').addEventListener('click',restoreLastGame);
    $('openBtn').addEventListener('click',()=>{if(!recoveryBlocked&&!onboardingRequired)run();});
    $('resetBtn').addEventListener('click',resetToNewGame);
    $('exportBtn').addEventListener('click',()=>download(recoveryBlocked?'used-shop-unreadable-original.json':'used-shop-day-'+state.day+'.json',recoveryBlocked&&originalRaw!==null?originalRaw:JSON.stringify({schema:E.VERSION,state},null,2)));
