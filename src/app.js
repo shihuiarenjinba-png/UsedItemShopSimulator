@@ -204,7 +204,10 @@
      const label=el('label','toggle'),check=el('input');check.type='checkbox';check.dataset.offerId=String(item.id);label.append(check,document.createTextNode(' この商品を買い取る'));box.append(label);container.append(box);
    }
  }
- function renderInventory(){const root=$('inventory');root.replaceChildren();if(!storeItems().length){root.append(el('p','hint','まだ在庫がありません。商品を買い取って販売を始めましょう。'));return;}
+ function renderInventory(){const root=$('inventory');root.replaceChildren();if(!storeItems().length){
+     $('warehousePageLabel').textContent='📦 倉庫 0点';
+     $('warehousePrev').disabled=true;$('warehouseNext').disabled=true;
+     root.append(el('p','hint','まだ在庫がありません。来店した売り手から買い取りましょう。'));return;}
    const table=el('table'),head=el('thead'),tr=el('tr');for(const h of ['商品','保管場所・経過','状態','仕入原価','現在の販売価格','修理','売場に並べる','採算と販売の見込み'])tr.append(el('th','',h));head.append(tr);table.append(head);
    const stock=storeItems(),warehouse=stock.filter(p=>(p.zone??'shelf')==='warehouse');
    const maxPage=Math.max(0,Math.ceil(warehouse.length/9)-1);
@@ -215,7 +218,8 @@
    const showing=stock.filter(p=>p.zone!=='warehouse').concat(warehouse.slice(warehousePage*9,(warehousePage+1)*9));
    const body=el('tbody');for(const p of showing){const row=el('tr');row.append(el('td','',E.TYPES[p.type].name),
        el('td','hint',(p.zone==='warehouse'?'📦 倉庫':p.zone==='workshop'?'🔧 修理台':'🏬 売場')+
-       ' ｜ 仕入後'+(p.ageDays??0)+'日'),
+       ' ｜ 仕入後'+(p.ageDays??0)+'日'+
+       (p.repairProgress!==undefined?' ｜ 整備 '+p.repairProgress+'%（'+(p.repairProgress<100?'現状品':'整備済み')+'）':'')),
        el('td','',p.grade),el('td','',yen(p.cost)));
      const inp=field('price','',p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
      const rehab=el('td');
@@ -305,8 +309,9 @@
  function renderFinance(){
    const root=$('financeSummary');
    const details=E.financeSummary(state);
+   const toolAssets=(live()?.ownedTools??state.ownedTools??[]).reduce((n,id)=>n+(L.TOOLS.find(t=>t.id===id)?.price??0),0);
    const assetValue=storeItems().reduce((n,item)=>n+item.cost,0)+
-     ((state.equipmentLevel??1)>=2?E.EQUIPMENT_UPGRADE_COST:0);
+     ((live()?.equipmentLevel??state.equipmentLevel??1)>=2?E.EQUIPMENT_UPGRADE_COST:0)+toolAssets;
    const netWorth=shopCash()+assetValue-details.totalDebt;
    root.replaceChildren(
      el('p','',details.mode==='legacy'?'旧ルールのセーブ：この進行には借入金や返済義務を後付けしません。':
@@ -390,8 +395,10 @@
    bundle.addEventListener('click',buyToolset);toolRoot.append(bundle);
    toolRoot.append(el('p','hint','未完成でも倉庫へ戻し、状態を明示して販売可能。工具操作中は画面の時計が進むため、ゆっくり作業するなら一時停止できます。'));
  }
- function renderStats(){$('equipmentUpgrade').disabled=(live()?.equipmentLevel??state.equipmentLevel??1)>=2;
-   $('equipmentLevel').textContent='修理設備 '+(state.equipmentLevel??1)+' / 2 ｜ 売場 '+E.SHELF_CAPACITY+'点 ｜ 全保管 '+E.CAPACITY+'点';
+ function renderStats(){
+   $('equipmentUpgrade').disabled=(live()?.equipmentLevel??state.equipmentLevel??1)>=2;
+   if($('equipmentUpgrade').disabled)$('equipmentUpgrade').checked=false;
+   $('equipmentLevel').textContent='修理設備 '+(live()?.equipmentLevel??state.equipmentLevel??1)+' / 2 ｜ 売場 '+E.SHELF_CAPACITY+'点 ｜ 全保管 '+E.CAPACITY+'点';
    $('visitorSchedule').textContent='本日の買い手 '+E.customerArrivals(state).length+'人 ＋ 持ち込み '+E.offers(state).length+'組 （ポアソン過程で時間順に来店）。対応済み '+(live()?.cursor??0)+'件';
    $('day').textContent=state.day>180?'完走':state.day+'日目';$('cash').textContent=yen(shopCash());$('stock').textContent=storeItems().length+' / '+E.CAPACITY+'点';$('sold').textContent=state.totalSold+'点 ｜ 評判 '+state.reputation;}
  function renderReport(){const root=$('report');root.replaceChildren();if(!lastReport){root.append(el('p','hint','営業後に、売れた品物・利益・売れ残りをここに表示します。'));return;}
