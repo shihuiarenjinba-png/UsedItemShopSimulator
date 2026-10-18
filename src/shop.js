@@ -79,11 +79,27 @@
       if(!choice || changes.has(choice.id) || !state.inventory.some(x=>x.id===choice.id)) throw Error('在庫値付けの指定が不正です。');
       changes.set(choice.id,integer(choice.price,'販売価格',1,1000000));
     }
+    const repairIds=plan.repairs??[];
+    if(!Array.isArray(repairIds))throw Error('修理計画が不正です。');
+    const uniqueRepairs=new Set(repairIds);
+    if(repairIds.length!==uniqueRepairs.size)throw Error('同じ商品を重複して修理できません。');
+    let repairSpending=0;
+    const repairMap=new Map();
+    for(const id of repairIds){
+      const item=state.inventory.find(x=>x.id===id);
+      if(!item||item.grade==='A')throw Error('修理できない商品が指定されています。');
+      const newGrade=item.grade==='C'?'B':'A';
+      const price=Math.max(100,Math.round(item.fair*0.12/100)*100);
+      const fair=Math.max(1,Math.round(item.fair*GRADES[newGrade]/GRADES[item.grade]));
+      if(item.cost+price>1000000||fair>1000000)throw Error('修理後の評価額が上限を超えます。');
+      repairSpending+=price;
+      repairMap.set(id,{...item,grade:newGrade,fair,cost:item.cost+price});
+    }
     const procurement=purchases.reduce((sum,x)=>sum+x.cost,0);
-    if(state.cash<RentAndBuy(procurement)) throw Error('仕入と家賃を支払う資金がありません。');
+    if(state.cash<RentAndBuy(procurement+repairSpending)) throw Error('仕入と家賃を支払う資金がありません。');
     let revenue=0,cogs=0,sold=0;
     const nextInventory=[],soldItems=[];
-    const candidate=state.inventory.map(x=>({...x,price:changes.get(x.id)??x.price})).concat(purchases);
+    const candidate=state.inventory.map(x=>({...x,...(repairMap.get(x.id)||{}),price:changes.get(x.id)??x.price})).concat(purchases);
     for(const item of candidate){
       const chance=saleChance(item.type,item.grade,item.price,item.fair,state.day,state.reputation);
       if(random(state.seed,state.day,1000+item.id)<chance){
@@ -91,9 +107,9 @@
       }else nextInventory.push(item);
     }
     const profit=revenue-cogs-RENT;
-    const cash=state.cash-procurement-RENT+revenue;
+    const cash=state.cash-procurement-repairSpending-RENT+revenue;
     integer(cash,'残高',0,1e10);
-    const report={day:state.day,revenue,procurement,cogs,rent:RENT,profit,cash,inventory:nextInventory.length,sold,bought:purchases.length,soldItems};
+    const report={day:state.day,revenue,procurement,repairSpending,repaired:repairIds.length,cogs,rent:RENT,profit,cash,inventory:nextInventory.length,sold,bought:purchases.length,soldItems};
     const next={...state,day:state.day+1,cash,inventory:nextInventory,totalSold:state.totalSold+sold,
       reputation:Math.min(100,Math.max(0,state.reputation+(sold>=2?1:(nextInventory.length>10&&sold===0?-1:0)))),
       history:state.history.concat([{day:report.day,profit:report.profit,cash:report.cash,sold:report.sold}])};
