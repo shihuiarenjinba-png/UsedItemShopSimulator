@@ -1,10 +1,10 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
 const E=require("../src/shop.js");
-test("20-minute small-shop footfall reaches a useful but bounded number of customers",()=>{
+test("15-minute shop Poisson shoppers average about four to five, alongside three sellers",()=>{
  let visitors=0;for(let seed=1;seed<=100;seed++)visitors+=E.customerArrivals(E.initial(seed)).length;
  const avg=visitors/100;
- assert.ok(avg>=7&&avg<=11,"unexpected average visitors: "+avg);
+ assert.ok(avg>=3.5&&avg<=6.5,"unexpected average visitors: "+avg);
 });
 test("30-day 24-seed simulation retains working capital while allowing zero-sale days",()=>{
  const results=[];
@@ -26,7 +26,7 @@ test("30-day 24-seed simulation retains working capital while allowing zero-sale
  }
  const avgZero=results.reduce((a,b)=>a+b.zeroDays,0)/results.length;
  const avgCash=results.reduce((a,b)=>a+b.cash,0)/results.length;
- assert.ok(avgZero<6&&avgZero>0,"unexpected average zero-sales days: "+avgZero);
+ assert.ok(avgZero<12&&avgZero>3,"unexpected average zero-sales days: "+avgZero);
  assert.ok(avgCash>700000,"simplified steady purchasing strategy must not regularly wipe out startup funds");
  assert.ok(results.every(x=>x.month.fullBreakdown&&x.month.revenue>=0));
 });
