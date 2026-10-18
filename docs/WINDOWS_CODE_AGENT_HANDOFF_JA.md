@@ -1,10 +1,10 @@
 # Windows コード担当への引き継ぎ — UsedItemShopSimulator
 
-GitHubの正本：`https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/tree/feature/onboarding-debt-workshop-spec-20261018`。
+GitHubの正本：`https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/tree/feature/20min-shop-day-monthly-review-20261018`。
 本タブでGitHubソースを改良する。Windows PCのコード担当は**このブランチを新しい独立作業フォルダにチェックアウト**し、Windows実機検証・正規MSIX生成・提出用成果物と試験ログを担当する。既存main/Releaseは変更しない。
 
 ## 1. 最初に実施
-- `git clone --branch feature/onboarding-debt-workshop-spec-20261018 https://github.com/shihuiarenjinba-png/UsedItemShopSimulator.git`
+- `git clone --branch feature/20min-shop-day-monthly-review-20261018 https://github.com/shihuiarenjinba-png/UsedItemShopSimulator.git`
 - `node --version` を確認（Node.js 20以上）。`npm test` を実行し、全テストの出力と終了コードを保存。
 - `index.html` の操作画面を実機で確認。通常買取、低値提示時の成功/失敗、失敗後の見送り/事前承認済みの希望額・上乗せ購入、各々の現金と原価の変化を検査。
 - 店頭価格の変更で予想販売数量が変わるか、売れ残りの摩耗・価格維持・修理効果、21日以降の中古車出現を長期試遊する。数値変更だけでセーブされないことを確認。
@@ -21,7 +21,16 @@ GitHubの正本：`https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/
 - ハード30・60営業日後の利息計上、返済時の利息優先充当、過払い拒否、家賃資金の説明を確認。
 - 「最初からやり直す」で前のセーブがバックアップされ、モード選択が再表示されること。**新しいゲームを開始しなくても、開業画面から前のプレイを復元できること。**
 - 旧セーブには強制的な借入を導入しないこと。資金・返済の「？」ヘルプや、買取・倉庫・営業ガイドが表示されること。
-- 詳細：`docs/FINANCE_MODE_IMPLEMENTATION_20261018_JA.md`。
+- 詳細：`docs/FINANCE_MODE_IMPLEMENTATION_20261018_JA.md` と `docs/20MIN_DAY_MONTH_END_RESEARCH_20261018_JA.md`。
+
+## 今回の20分タイマーと月末決算の重要試験
+- **開店前は時計停止**。開店したら実時間20分で10:00→19:00。途中で一時停止・再開できること。表示時刻と進捗率が実時間どおりであること。
+- アプリを途中終了→再起動すると同一営業日・同じ時計時刻から**一時停止状態**で再開すること。休止・画面非表示中に時間が進まないこと。旧セーブの時計が存在しない場合は10:00から開始すること。
+- 「閉店まで早送り」を選んでも客数、販売、利益は20分通常終了時と同一条件なら一致すること。修理・値付けの予定変更は**現段階では閉店時に一括適用される**と説明されていること。
+- 30営業日終了ごとに月次報告が出現し、期末現金・売上・原価・修理費・機材費・家賃・利息・利益を確認できること。返済額入力・0円見送り・一部返済・残高更新・翌月再開を操作。
+- 30日目と60日目のハード利息、払い過ぎ・資金不足時の拒否、月末レビュー未選択時の次日営業不可を確認。月末の途中で保存・再起動し報告が残ること。
+- 24シード×30日シミュレーション結果はゲームバランスの限定的な検査。プレイヤー操作/長期180日を別途試遊。
+- **人物が店内を移動し実時間で売買する仕組みは未実装**。現段階の一括決済を完全なリアルタイム接客と誤認しない。
 
 ## 2. MSIXをGitHubの専用ブランチに実装
 - HTML/JSのソースと保存形式を維持しながら、セキュアなElectron等のデスクトップホストを追加（`nodeIntegration:false`, `contextIsolation:true`, `sandbox:true`, 不要な外部通信禁止）。
@@ -36,6 +45,6 @@ GitHubの正本：`https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/
 - Windowsテスト画像・実操作結果、WACK XML、更新・削除後の保存/残留結果
 - 未合格の項目と原因、修正差分（直していない項目をPASSにしない）
 
-- ゲームバランスと係数の出典・未検証部分は `docs/VISITOR_WAREHOUSE_PRICING_MODEL_20261018_JA.md` を参照。63件の独立JavaScriptテスト成功は正式Node CI合格ではない。
+- ゲームバランスと係数の出典・未検証部分は `docs/VISITOR_WAREHOUSE_PRICING_MODEL_20261018_JA.md` を参照。78件の独立JavaScriptテスト成功は正式Node CI合格ではない。
 
 ※現在はソース候補段階。正式Identity未確認・GUI/正式MSIX/WACK未実施のため商用販売はHOLD。
