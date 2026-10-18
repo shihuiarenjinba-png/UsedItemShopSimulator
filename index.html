@@ -15,9 +15,13 @@
 <div><small>在庫</small><strong id="stock">—</strong></div><div><small>累計販売・評判</small><strong id="sold">—</strong></div></section>
 <section class="stage">
 <div class="step"><span class="index">1</span><div><h2>今日の持ち込み商品</h2><p>品物を見極め、買取提示額と店頭販売価格を決める。</p></div></div>
-<div id="offers" class="offers"></div></section>
-<section class="stage"><div class="step"><span class="index">2</span><div><h2>店頭の在庫と値付け</h2><p>売れ残った商品は、価格の変更や状態に応じた修理ができます。修理には現金が必要です。</p></div></div><div id="inventory" class="scroll-table"></div></section>
-<section class="stage open-day"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>販売結果を見て、次の日の仕入れと価格を考えよう。</p></div></div>
+<p id="visitorSchedule" class="budget">今日の来客予定を確認中...</p><div id="offers" class="offers"></div></section>
+<section class="stage"><div class="step"><span class="index">2</span><div><h2>店頭の在庫と値付け</h2><p>売れ残った商品は、価格の変更や状態に応じた修理ができます。修理には現金が必要です。</p></div></div><p class="hint">📦 買い取った品物はいったん倉庫へ。必要なら🔧修理台へ送り、整備後に🏬売場へ並べます。自動で売り出すことはありません。</p>
+<div id="inventory" class="scroll-table"></div>
+<details class="equipment"><summary>修理機材を強化する（任意）</summary>
+<p id="equipmentLevel">修理設備 1 / 2</p><label class="toggle"><input id="equipmentUpgrade" type="checkbox"> 修理台を追加・機材を更新する（¥65,000）</label>
+<p class="hint">設備強化で1日の修理上限が2点になり、修理費も改善します。初期の基本機材は購入済みです。</p></details></section>
+<section class="stage open-day"><div class="step"><span class="index">3</span><div><h2>お店を1日営業する</h2><p>来客の時間帯や販売結果を見て、倉庫・修理・価格を次の日に調整しよう。</p></div></div>
 <p id="budget" class="budget" role="status"></p><button class="primary" id="openBtn">この計画で1日営業する →</button></section>
 <section class="stage" aria-labelledby="reportTitle"><h2 id="reportTitle">今日の結果</h2><div id="report"></div></section>
 <details class="extra"><summary>経営記録・セーブ管理（詳細）</summary><div class="extra-inner">
