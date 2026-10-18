@@ -42,6 +42,28 @@
    refresh();
   }catch(e){clockNotice=e.message;updateClock();}
  }
+ function playSound(note=660){
+   if(!state?.settings?.soundEnabled||typeof window.AudioContext!=='function')return;
+   try{
+     const context=new window.AudioContext(),osc=context.createOscillator(),gain=context.createGain();
+     osc.type='sine';osc.frequency.value=note;
+     gain.gain.setValueAtTime(.06,context.currentTime);
+     gain.gain.exponentialRampToValueAtTime(.001,context.currentTime+.13);
+     osc.connect(gain);gain.connect(context.destination);
+     osc.onended=()=>{void context.close();};
+     osc.start();osc.stop(context.currentTime+.14);
+   }catch(_error){/* Sound is optional; never break trading or saving. */}
+ }
+ function toggleSound(){
+   state={...state,settings:{...state.settings,soundEnabled:!state.settings?.soundEnabled}};
+   persist();renderSound();
+   if(state.settings.soundEnabled)playSound(720);
+ }
+ function renderSound(){
+   const enabled=!!state.settings?.soundEnabled;
+   $('soundToggleBtn').textContent=enabled?'🔊 作業効果音：ON':'🔇 作業効果音：OFF';
+   $('soundToggleBtn').setAttribute('aria-pressed',String(enabled));
+ }
  function buyTool(id){
   try{commitLive(L.buyTool(state,ensureLive(),id));clockNotice='工具を定価で購入しました。';refresh();}
   catch(e){clockNotice=e.message;updateClock();}
@@ -52,7 +74,7 @@
  }
  function chooseRepair(id){selectedRepairId=id;renderWorkshop();}
  function useTool(id){
-  try{commitLive(L.workOn(state,ensureLive(),selectedRepairId,id));clockNotice='作業が進みました。';refresh();}
+  try{commitLive(L.workOn(state,ensureLive(),selectedRepairId,id));playSound(590);clockNotice='作業が進みました。';refresh();}
   catch(e){clockNotice=e.message;updateClock();}
  }
  function stopRepair(){
@@ -429,7 +451,7 @@
  }
  function renderHistory(){const root=$('history');root.replaceChildren();for(const item of state.history.slice(-12).reverse())root.append(el('div','record',item.day+'日目 ｜ 販売 '+item.sold+'点 ｜ 利益 '+yen(item.profit)+' ｜ 現金 '+yen(item.cash)));}
  function refresh(){
-   renderStats();renderOffers();renderInventory();renderWorkshop();renderVisitorLog();renderReport();renderHistory();renderFinance();refreshBudget();showMonth();updateClock();
+   renderStats();renderOffers();renderInventory();renderWorkshop();renderVisitorLog();renderSound();renderReport();renderHistory();renderFinance();refreshBudget();showMonth();updateClock();
    $('openingScreen').hidden=!onboardingRequired;
    $('gameShell').hidden=onboardingRequired;
    if(onboardingRequired)$('openBtn').disabled=true;
@@ -515,6 +537,7 @@
    $('sellerRespondBtn').addEventListener('click',()=>answerSeller(true));
    $('sellerSkipBtn').addEventListener('click',()=>answerSeller(false));
    $('applyPlanBtn').addEventListener('click',applyPlan);
+   $('soundToggleBtn').addEventListener('click',toggleSound);
    $('warehousePrev').addEventListener('click',()=>{warehousePage=Math.max(0,warehousePage-1);renderInventory();});
    $('warehouseNext').addEventListener('click',()=>{warehousePage++;renderInventory();});
    $('fastForwardBtn').addEventListener('click',fastForwardDay);
