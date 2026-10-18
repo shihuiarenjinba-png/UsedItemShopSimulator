@@ -9,7 +9,7 @@ const IDS=["day","cash","stock","sold","offers","inventory","budget","openBtn","
 "gameClock","clockProgress","clockBar","timeLabel","pauseBtn","fastForwardBtn","timeMessage",
 "monthPanel","monthSummary","monthRepayment","monthPayBtn","monthSkipBtn","monthMessage",
 "sellerRespondBtn","sellerSkipBtn","warehousePageLabel","warehousePrev","warehouseNext","workbench",
-"toolShop","applyPlanBtn","visitorLog"];
+"toolShop","applyPlanBtn","visitorLog","soundToggleBtn"];
 function boot(savedRaw,{mode="easy",start=true,timeRaw=null}={}){
  const nodes={},listeners={},storage=new Map(),key="used-item-shop:save:v1";
  if(savedRaw!==undefined)storage.set(key,savedRaw);
@@ -187,4 +187,17 @@ test("bad imported legacy save cannot be overwritten on opening",()=>{
  ui.skip();
  assert.equal(ui.storage.get(ui.key),raw);
  assert.equal(ui.nodes.openBtn.disabled,true);
+});
+
+test("sound effects are opt-in, persist mode, and work without audio hardware",()=>{
+ const ui=boot();
+ assert.equal(ui.current().settings,undefined);
+ assert.match(ui.nodes.soundToggleBtn.textContent,/OFF/);
+ ui.nodes.soundToggleBtn.click();
+ assert.equal(ui.current().settings.soundEnabled,true);
+ assert.match(ui.nodes.soundToggleBtn.textContent,/ON/);
+ const restored=boot(ui.storage.get(ui.key));
+ assert.equal(restored.current().settings.soundEnabled,true);
+ restored.nodes.soundToggleBtn.click();
+ assert.equal(restored.current().settings.soundEnabled,false);
 });
