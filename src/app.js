@@ -20,13 +20,16 @@
   }catch(e){clockNotice=e.message;updateClock();refreshBudget();return false;}
  }
  function processArrivals(untilMinute){
-  const result=L.until(state,ensureLive(),untilMinute);commitLive(result.session);
+  const before=ensureLive(),result=L.until(state,before,untilMinute);
+  if(result.session.cursor!==before.cursor||result.session.minute!==before.minute||
+     result.session.pendingSeller!==before.pendingSeller)commitLive(result.session);
   if(result.interrupted){
    const frac=(result.minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES);
    clock=T.paused({...clock,elapsedMs:Math.round(frac*T.DAY_MS)});
    if(clockTimer!==null){clearInterval(clockTimer);clockTimer=null;}
    saveClock();clockNotice='買取希望者が来店！提示額を確認して対応してください。';refresh();return true;
   }
+  if(result.session.cursor!==before.cursor)refresh();
   return false;
  }
  function answerSeller(buy){
@@ -294,7 +297,9 @@
        ' ｜ 買取見込み '+expectedProcurement.toFixed(2)+'点。'+
        (chance?chance+'。 ':'')+(marginAlerts.length?' ⚠ '+marginAlerts.join('、')+'。':'')+
        (notice||' 売れなくても翌日に持ち越せます。');
-     $('openBtn').disabled=state.day>180;
+     $('openBtn').disabled=recoveryBlocked||onboardingRequired||state.day>180||
+       !!state.pendingMonth||!!live()?.pendingSeller||!!clock&&!clock.paused||
+       !!clock&&clock.elapsedMs>=T.DAY_MS;
    }catch(error){box.classList.add('error');box.textContent=error.message;$('openBtn').disabled=true;}
  }
  function renderFinance(){
@@ -428,7 +433,12 @@
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;stopClock();if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
     if(next.liveSession)L.validate(next,next.liveSession);
-    state=next;clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);saveClock();onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;repayNotice='';
+    state=next;clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
+    if(live()){
+      const floor=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
+      if(clock.elapsedMs<floor)clock={...clock,elapsedMs:floor,paused:true};
+    }
+    saveClock();onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;repayNotice='';
     notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
  function startWithMode(){
    if(!onboardingRequired||recoveryBlocked)return;
