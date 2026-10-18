@@ -1,0 +1,38 @@
+
+/* Purpose-specific work areas. Free CSS only, no invented customers or paid assets. */
+.shop-map[data-arrival="waiting"] .scene-person{display:none!important}
+.shop-context{display:grid;grid-template-columns:minmax(175px,1.05fr) minmax(190px,1fr);gap:14px;
+ align-items:center;background:linear-gradient(130deg,#524036,#233a3d);
+ border:1px solid #b09368;border-radius:14px;padding:12px;margin:0 0 18px}
+.shop-context-art{position:relative;overflow:hidden;height:145px;border-radius:9px;
+ border:1px solid #f8efce35;background:linear-gradient(#7e775f 0 62%,#5b5344 62% 100%)}
+.shop-context-art>span{position:absolute;display:block;pointer-events:none}
+.shop-context-backdrop{inset:0 0 43% 0;background:repeating-linear-gradient(90deg,#f5e2b521 0 29px,transparent 30px 47px)}
+.shop-context-floor{bottom:0;left:0;right:0;height:38%;background:repeating-linear-gradient(90deg,#493b322e 0 35px,#e6cb9d11 36px 38px)}
+.shop-context-fixture{left:13%;bottom:19%;width:48%;height:51%;border:4px solid #8b6646;border-radius:5px;
+ background:repeating-linear-gradient(0deg,#d6b27f 0 7px,#a1774f 8px 14px,#e1c193 15px 23px)}
+.shop-context-item{right:16%;bottom:21%;width:25%;height:27%;border:3px solid #805c41;
+ background:linear-gradient(#debd86,#a17a4f);border-radius:5px}
+.shop-context-item-second{left:24%;bottom:56%;height:13%;width:20%;border:2px solid #c1a07e;background:#7f9ca5;border-radius:5px}
+.shop-context-figure{display:none;right:9%;bottom:23%;width:16%;height:46%;
+ border-radius:46% 46% 18% 18%;background:linear-gradient(#d7af87 0 25%,#3c6664 26% 100%);border:3px solid #4b6059}
+body[data-shop-seller="true"] .shop-context[data-scene="buy"] .shop-context-figure{display:block}
+.shop-context[data-scene="buy"] .shop-context-fixture{left:16%;width:60%;height:27%;bottom:17%;background:#ad865b}
+.shop-context[data-scene="buy"] .shop-context-item{left:45%;right:auto;bottom:46%;height:15%;width:20%}
+.shop-context[data-scene="stock"] .shop-context-figure,
+.shop-context[data-scene="repair"] .shop-context-figure,
+.shop-context[data-scene="money"] .shop-context-figure,
+.shop-context[data-scene="records"] .shop-context-figure,
+.shop-context[data-scene="day"] .shop-context-figure{display:none!important}
+.shop-context[data-scene="repair"] .shop-context-fixture{height:25%;width:60%;bottom:22%;background:#b68b61}
+.shop-context[data-scene="repair"] .shop-context-item{height:22%;width:33%;bottom:47%;background:#999e9d}
+.shop-context[data-scene="money"] .shop-context-fixture,
+.shop-context[data-scene="records"] .shop-context-fixture,
+.shop-context[data-scene="day"] .shop-context-fixture{left:20%;bottom:22%;width:36%;height:57%;transform:rotate(-8deg);background:#e1cda5}
+.shop-context[data-scene="money"] .shop-context-item,
+.shop-context[data-scene="records"] .shop-context-item{right:16%;bottom:37%;height:41%;width:22%;background:#d4d1c2}
+.shop-context[data-scene="day"] .shop-context-item{right:16%;bottom:35%;height:35%;border-radius:50%;background:#f6e6c2}
+.shop-context-caption h3{color:#f5deb8;font-size:18px;margin:0 0 8px}
+.shop-context-caption p{color:#e1d5c5;line-height:1.7;margin:0;font-size:13px}
+@media(max-width:700px){.shop-context{grid-template-columns:1fr}.shop-context-art{height:114px}}
+@media(prefers-reduced-motion:reduce){.shop-context *{animation:none!important;transition:none!important}}
