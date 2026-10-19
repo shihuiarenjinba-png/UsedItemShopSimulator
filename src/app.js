@@ -12,8 +12,7 @@
  function rememberVisibleStockPrices(){
   for(const field of document.querySelectorAll('[data-stock-price]')){
    const id=Number(field.dataset.stockPrice),value=Number(field.value);
-   if(Number.isSafeInteger(id)&&Number.isSafeInteger(value)&&value>=1&&value<=1000000)
-    stagedStockPrices.set(id,value);
+   if(Number.isSafeInteger(id))stagedStockPrices.set(id,value); // Retain invalid edits so preflight rejects rather than silently reusing stale prices.
   }
  }
  function resetStockDraft(){
