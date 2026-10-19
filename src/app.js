@@ -289,13 +289,24 @@
        label.append(check,document.createTextNode(' 🏬 売場に出す'));listing.append(label);
      }else listing.textContent=p.zone==='workshop'?'修理完了待ち':'販売中';
      row.append(listing);
-     const score=Math.min(.94,E.saleChance(p.type,p.grade,p.price,p.fair,state.day,state.reputation)*
-       E.marketDemand(state.seed,state.day,p.type));
-     const advice=E.safePrice(p,state);
-     row.append(el('td','hint','個別の購買目安 '+Math.round(score*100)+'% ｜ 採算ライン目安 '+yen(advice.breakEven)+
-       ' ｜ 利益目標 '+yen(advice.target)+(p.price<advice.breakEven?' ⚠ 採算割れのおそれ':'')));
+     const advice=E.safePrice(p,state),preview=el('td','hint');
+     preview.dataset.stockPreview=String(p.id);
+     row.append(preview);
+     updatePricePreview(p,preview,Number(inp.input.value));
      body.append(row);
    }table.append(body);root.append(table);
+ }
+ function updatePricePreview(item,element,price){
+  if(!element)return;
+  if(!Number.isSafeInteger(price)||price<1||price>1000000){
+    element.textContent='販売価格は1〜100万円で指定してください。';return;
+  }
+  const score=Math.min(.94,E.saleChance(item.type,item.grade,price,item.fair,state.day,state.reputation)*
+    E.marketDemand(state.seed,state.day,item.type));
+  const advice=E.safePrice(item,state);
+  element.textContent=(price===item.price?'確定価格':'未確定の仮価格')+'での購買目安 '+
+    Math.round(score*100)+'% ｜ 採算ライン目安 '+yen(advice.breakEven)+
+    ' ｜ 利益目標 '+yen(advice.target)+(price<advice.breakEven?' ⚠ 採算割れのおそれ':'');
  }
  function applyAgedDiscount(){
   if(recoveryBlocked||onboardingRequired||state.pendingMonth){
@@ -609,7 +620,13 @@
    refresh();
    document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseDay();});
    if(typeof window.addEventListener==='function')window.addEventListener('pagehide',()=>{pauseDay();});
-   document.addEventListener('input',event=>{if(event.target.matches('input'))refreshBudget();});
+   document.addEventListener('input',event=>{
+    if(event.target.matches('[data-stock-price]')){
+      const id=Number(event.target.dataset.stockPrice),item=storeItems().find(x=>x.id===id);
+      if(item)updatePricePreview(item,document.querySelector('[data-stock-preview="'+id+'"]'),Number(event.target.value));
+    }
+    if(event.target.matches('input'))refreshBudget();
+   });
    document.addEventListener('change',event=>{if(event.target.matches('input, select'))refreshBudget();});
    $('startGameBtn').addEventListener('click',startWithMode);
    $('repayBtn').addEventListener('click',()=>repayRequested(false));
