@@ -167,3 +167,14 @@
 #recordsStage>.extra{margin-top:2px}
 @media(max-width:880px){.shop-workspace{grid-template-columns:1fr}.shop-tabs{top:0;position:sticky;z-index:10;flex-direction:row;overflow-x:auto;white-space:nowrap;padding:7px}
  .shop-tabs button{flex:0 0 auto;width:auto;min-height:42px;padding:9px 11px}.shop-view-stack{width:100%}}
+
+
+/* Aging-inventory clearance; preview only until existing save-protected apply action. */
+.clearance-controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;
+ border:1px solid #b69b76;border-radius:12px;background:#2c403e;padding:14px;margin:12px 0}
+.clearance-controls strong{color:#f3dfbd}
+.clearance-controls p{font-size:12px;line-height:1.6;margin:4px 0;color:#e4e7d8}
+.clearance-controls select{min-height:44px;padding:8px;border:1px solid #acc0af;border-radius:7px;background:#152d34;color:#f0f5ed}
+.clearance-controls button{min-height:44px;padding:9px 14px;border-radius:8px;background:#e2c797;color:#26343b;border:1px solid #eeddb8;font-weight:800}
+.clearance-controls #agedDiscountNotice{grid-column:1/-1}
+@media(max-width:780px){.clearance-controls{grid-template-columns:1fr}.clearance-controls select,.clearance-controls button{width:100%}}
