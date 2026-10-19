@@ -7,10 +7,26 @@
  let clock,lastTick=0,clockTimer=null,clockNotice='',monthNotice='';
 
  let selectedRepairId=null,warehousePage=0,workbenchNotice='';
+ const priceDrafts=new Map(),repairDrafts=new Set(),listingDrafts=new Set();
+ function clearStockDrafts(){priceDrafts.clear();repairDrafts.clear();listingDrafts.clear();}
+ function captureStockDrafts(){
+   // Store only unsaved controls visible on the current inventory page.
+   for(const input of document.querySelectorAll('[data-stock-price]'))
+     priceDrafts.set(Number(input.dataset.stockPrice),Number(input.value));
+   for(const checkbox of document.querySelectorAll('[data-repair-id]')){
+     const id=Number(checkbox.dataset.repairId);
+     if(checkbox.checked)repairDrafts.add(id);else repairDrafts.delete(id);
+   }
+   for(const checkbox of document.querySelectorAll('[data-list-id]')){
+     const id=Number(checkbox.dataset.listId);
+     if(checkbox.checked)listingDrafts.add(id);else listingDrafts.delete(id);
+   }
+ }
+
  const live=()=>state.liveSession??null;
  const storeItems=()=>live()?.inventory??state.inventory;
  const shopCash=()=>live()?.cash??state.cash;
- function commitLive(next){state={...state,liveSession:next};persist();}
+ function commitLive(next){state={...state,liveSession:next};clearStockDrafts();persist();}
  function ensureLive(){if(!live()){state={...state,liveSession:L.initial(state)};persist();}return live();}
  function applyPlan(revealRepair=false){
   if(recoveryBlocked||onboardingRequired||state.pendingMonth)return false;
@@ -256,11 +272,11 @@
        ' ｜ 仕入後'+(p.ageDays??0)+'日'+
        (p.repairProgress!==undefined?' ｜ 整備 '+p.repairProgress+'%（'+(p.repairProgress<100?'現状品':'整備済み')+'）':'')),
        el('td','',p.grade),el('td','',yen(p.cost)));
-     const inp=field('price','',p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.dataset.basePrice=String(p.price);inp.input.dataset.ageDays=String(p.ageDays??0);inp.input.dataset.grade=String(p.grade);inp.input.dataset.zone=String(p.zone);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
+     const inp=field('price','',priceDrafts.has(p.id)?priceDrafts.get(p.id):p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.dataset.basePrice=String(p.price);inp.input.dataset.ageDays=String(p.ageDays??0);inp.input.dataset.grade=String(p.grade);inp.input.dataset.zone=String(p.zone);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
      const rehab=el('td');
      if(p.grade!=='A'){
        const wrap=el('label','toggle'),check=el('input');
-       check.type='checkbox';check.dataset.repairId=String(p.id);
+       check.type='checkbox';check.dataset.repairId=String(p.id);check.checked=repairDrafts.has(p.id);
        wrap.append(check,document.createTextNode(' 修理 '+yen(E.repairPrice(p,state.equipmentLevel??1))));
        check.disabled=p.zone==='workshop'||!!(p.zone==='workshop');
        rehab.append(wrap);
@@ -269,7 +285,7 @@
      const listing=el('td');
      if(p.zone==='warehouse'){
        const label=el('label','toggle'),check=el('input');
-       check.type='checkbox';check.dataset.listId=String(p.id);
+       check.type='checkbox';check.dataset.listId=String(p.id);check.checked=listingDrafts.has(p.id);
        label.append(check,document.createTextNode(' 🏬 売場に出す'));listing.append(label);
      }else listing.textContent=p.zone==='workshop'?'修理完了待ち':'販売中';
      row.append(listing);
@@ -282,31 +298,40 @@
    }table.append(body);root.append(table);
  }
  function applyAgedDiscount(){
-  if(recoveryBlocked||onboardingRequired||state.pendingMonth){$('agedDiscountNotice').textContent='営業中の在庫変更または復元ができない状態です。';return;}
-  const pct=Number($('agedDiscountPct').value);
-  if(![20,50].includes(pct))return;
-  let count=0;
-  for(const input of document.querySelectorAll('[data-stock-price]')){
-    const age=Number(input.dataset.ageDays),grade=input.dataset.grade,zone=input.dataset.zone;
-    if(zone==='workshop'||!(age>=7||grade==='C'||grade==='D'))continue;
-    const original=Number(input.dataset.basePrice);
-    if(!Number.isSafeInteger(original)||original<1)continue;
-    input.value=String(Math.max(1,Math.floor(original*(100-pct)/100)));
-    count++;
+  if(recoveryBlocked||onboardingRequired||state.pendingMonth){
+   $('agedDiscountNotice').textContent='営業中の在庫変更または復元ができない状態です。';return;
   }
-  $('agedDiscountNotice').textContent=count?
-   count+'点を'+pct+'％引きへ変更しました。内容を確認し、「値付け・修理台への移動・陳列を反映する」で確定してください。':
-   '対象となる長期在庫・状態の悪い商品はこのページにありません。別ページも確認してください。';
+  const pct=Number($('agedDiscountPct').value);if(![20,50].includes(pct))return;
+  captureStockDrafts();
+  // The full inventory, not only the visible 9-item warehouse page, is eligible.
+  const stock=storeItems(),affected=stock.filter(item=>item.zone!=='workshop'&&
+    ((item.ageDays??0)>=7||item.grade==='C'||item.grade==='D'));
+  for(const item of affected)
+    priceDrafts.set(item.id,Math.max(1,Math.floor(item.price*(100-pct)/100)));
+  renderInventory();
+  $('agedDiscountNotice').textContent=affected.length?
+   '全在庫の対象'+affected.length+'点を'+pct+'％引きへ仮設定しました。別ページも確認できます。販売価格の確定には「値付け・修理台への移動・陳列を反映する」を押してください。':
+   '対象となる長期在庫・状態の悪い商品はありません。';
   refreshBudget();
  }
- function plan(){const buy=[],prices=[],repairs=[],list=[];for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){const id=Number(check.dataset.offerId);const mode=document.querySelector('[data-offer-mode="'+id+'"]').value;
-     const fallback=document.querySelector('[data-offer-fallback="'+id+'"]').value;
-     buy.push({id,price:Number(document.querySelector('[data-offer-price="'+id+'"]').value),
-       mode,bid:Number(document.querySelector('[data-offer-bid="'+id+'"]').value),fallback});}
-   for(const input of document.querySelectorAll('[data-stock-price]'))prices.push({id:Number(input.dataset.stockPrice),price:Number(input.value)});
-   for(const checkbox of document.querySelectorAll('[data-repair-id]'))if(checkbox.checked)repairs.push(Number(checkbox.dataset.repairId));
-   for(const checkbox of document.querySelectorAll('[data-list-id]'))if(checkbox.checked)list.push(Number(checkbox.dataset.listId));
-   return {buy,prices,repairs,list,equipmentUpgrade:$('equipmentUpgrade')?.checked===true};}
+ function plan(){
+  // Preserve all uncommitted pages; the current inputs always take priority.
+  captureStockDrafts();
+  const buy=[],prices=[],repairs=[],list=[];
+  for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){
+    const id=Number(check.dataset.offerId),mode=document.querySelector('[data-offer-mode="'+id+'"]').value;
+    const fallback=document.querySelector('[data-offer-fallback="'+id+'"]').value;
+    buy.push({id,price:Number(document.querySelector('[data-offer-price="'+id+'"]').value),
+      mode,bid:Number(document.querySelector('[data-offer-bid="'+id+'"]').value),fallback});
+  }
+  const inventory=storeItems(),validIds=new Set(inventory.map(item=>item.id));
+  for(const [id,price] of priceDrafts)if(validIds.has(id))prices.push({id,price});
+  for(const item of inventory){
+    if(repairDrafts.has(item.id)&&item.zone!=='workshop'&&item.grade!=='A')repairs.push(item.id);
+    if(listingDrafts.has(item.id)&&item.zone==='warehouse')list.push(item.id);
+  }
+  return {buy,prices,repairs,list,equipmentUpgrade:$('equipmentUpgrade')?.checked===true};
+ }
  function refreshBudget(){const box=$('budget');box.className='budget';if(recoveryBlocked){box.classList.add('error');box.textContent='元のセーブの保護中です。セーブ管理から退避するか、新規開始してください。';$('openBtn').disabled=true;return;}
    try{const p=plan(),list=E.offers(state),total=p.buy.reduce((sum,item)=>{
       const offer=list.find(o=>o.id===item.id);
@@ -573,7 +598,7 @@
      if(originalTime!==null)localStorage.setItem(BACKUP_TIME_KEY,originalTime);
      else localStorage.removeItem(BACKUP_TIME_KEY);
      stopClock();localStorage.setItem(KEY,raw);localStorage.setItem(TIME_KEY,JSON.stringify(restoredTime));
-     state=restored;lastReport=restored.lastReport??null;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
+     state=restored;clearStockDrafts();lastReport=restored.lastReport??null;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
      repayNotice='';notice='前回の進行を復元しました。';refresh();
    }catch(error){alert('セーブを復元できませんでした：'+error.message);}
  }
@@ -598,8 +623,8 @@
    $('applyPlanBtn').addEventListener('click',()=>applyPlan(true));
    $('agedDiscountBtn').addEventListener('click',applyAgedDiscount);
    $('soundToggleBtn').addEventListener('click',toggleSound);
-   $('warehousePrev').addEventListener('click',()=>{warehousePage=Math.max(0,warehousePage-1);renderInventory();});
-   $('warehouseNext').addEventListener('click',()=>{warehousePage++;renderInventory();});
+   $('warehousePrev').addEventListener('click',()=>{captureStockDrafts();warehousePage=Math.max(0,warehousePage-1);renderInventory();});
+   $('warehouseNext').addEventListener('click',()=>{captureStockDrafts();warehousePage++;renderInventory();});
    $('fastForwardBtn').addEventListener('click',fastForwardDay);
    $('monthPayBtn').addEventListener('click',()=>decideMonthly(Number($('monthRepayment').value)));
    $('monthSkipBtn').addEventListener('click',()=>decideMonthly(0));
