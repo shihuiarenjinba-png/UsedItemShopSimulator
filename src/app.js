@@ -169,7 +169,7 @@
    // Skip closes now: unarrived buyers and sellers vanish; completed trades persist.
    try{
      const output=L.finish(state,live()??L.initial(state));
-     state={...output.state,lastReport:output.report};lastReport=output.report;
+     state={...output.state,lastReport:output.report};clearStockDrafts();lastReport=output.report;
      notice=output.report.sold?'本日販売できた商品があります。':'本日の販売は0点でした。';
      selectedRepairId=null;warehousePage=0;clock=T.initial(state.day);
      persist();saveClock();refresh();
@@ -546,7 +546,7 @@
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;stopClock();if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
     if(next.liveSession)L.validate(next,next.liveSession);
-    state=next;clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
+    state=next;clearStockDrafts();clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
     if(live()){
       const floor=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
       if(clock.elapsedMs<floor)clock={...clock,elapsedMs:floor,paused:true};
@@ -557,7 +557,7 @@
    if(!onboardingRequired||recoveryBlocked)return;
    const selected=$('openingModeHard').checked?'hard':$('openingModeNormal').checked?'normal':'easy';
    try{
-     state=E.startGame(selected);selectedRepairId=null;clock=T.initial(state.day);saveClock();
+     state=E.startGame(selected);clearStockDrafts();selectedRepairId=null;clock=T.initial(state.day);saveClock();
      onboardingRequired=false;lastReport=null;repayNotice='';notice='';
      if(!persist())throw Error('開業情報を保存できませんでした。別の場所に保存してください。');
      refresh();
@@ -577,7 +577,7 @@
      else localStorage.removeItem(BACKUP_TIME_KEY);
      localStorage.removeItem(KEY);localStorage.removeItem(TIME_KEY);
    }catch(error){alert('以前のセーブを保護できないためリセットしませんでした：'+error.message);return;}
-   recoveryBlocked=false;originalRaw=null;state=E.initial();clock=T.initial(state.day);onboardingRequired=true;lastReport=null;
+   recoveryBlocked=false;originalRaw=null;state=E.initial();clearStockDrafts();clock=T.initial(state.day);onboardingRequired=true;lastReport=null;
    repayNotice='';notice='';$('openingModeEasy').checked=true;
    $('openingModeNormal').checked=false;$('openingModeHard').checked=false;
    $('openingError').textContent='';refresh();
