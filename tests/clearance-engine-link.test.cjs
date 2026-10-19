@@ -17,5 +17,11 @@ test("committed 20-percent price change reaches actual sales engine and customer
  assert.equal(original.price,oldPrice,"original saved session is not overwritten");
  assert.ok(E.saleChance(original.type,original.grade,nextPrice,original.fair,s.day,s.reputation)>
   E.saleChance(original.type,original.grade,oldPrice,original.fair,s.day,s.reputation));
+ const visitor=E.customerArrivals(s)[0];
+ if(visitor){
+   assert.ok(E.buyerChance(s,{...current,price:nextPrice},visitor)>
+     E.buyerChance(s,{...current,price:oldPrice},visitor),
+     "the live buyer scoring must use the discounted price");
+ }
  assert.deepEqual(L.validate(s,out),out);
 });
