@@ -49,3 +49,21 @@ test("warehouse pagination and live-commit draft invalidation remain in place",(
  assert.match(app,/function commitLive\(next\)\{state=\{\.\.\.state,liveSession:next\};clearStockDrafts\(\);persist\(\);\}/);
  assert.match(app,/applyPlan\(true\)/);
 });
+
+test("sale-probability preview uses the uncommitted price and flags it as a draft",()=>{
+ const a=app.indexOf("function updatePricePreview("),b=app.indexOf("function applyAgedDiscount(){",a);
+ assert.ok(a>=0&&b>a);
+ const source=app.slice(a,b);
+ const item={id:3,type:"console",grade:"B",price:26000,fair:26000};
+ const saved={seed:1,day:1,reputation:55};
+ const mock={saleChance:(type,grade,price)=>price===26000?.30:.47,
+             marketDemand:()=>1,safePrice:()=>({breakEven:20000,target:28000})};
+ const display={textContent:""};
+ const fn=new Function("E","state","yen",source+"return updatePricePreview;")(mock,saved,x=>x+"円");
+ fn(item,display,26000);assert.match(display.textContent,/確定価格/);
+ assert.match(display.textContent,/30%/);
+ fn(item,display,20800);assert.match(display.textContent,/未確定の仮価格/);
+ assert.match(display.textContent,/47%/);
+ fn(item,display,0);assert.match(display.textContent,/指定してください/);
+ assert.match(app,/event\.target\.matches\('\[data-stock-price\]'\)/);
+});
