@@ -609,7 +609,7 @@
      if(originalTime!==null)localStorage.setItem(BACKUP_TIME_KEY,originalTime);
      else localStorage.removeItem(BACKUP_TIME_KEY);
      stopClock();localStorage.setItem(KEY,raw);localStorage.setItem(TIME_KEY,JSON.stringify(restoredTime));
-     state=restored;clearStockDrafts();lastReport=restored.lastReport??null;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;
+     state=restored;clearStockDrafts();lastReport=restored.lastReport??null;clock=restoredTime;onboardingRequired=false;recoveryBlocked=false;originalRaw=null;
      repayNotice='';notice='前回の進行を復元しました。';refresh();
    }catch(error){alert('セーブを復元できませんでした：'+error.message);}
  }
