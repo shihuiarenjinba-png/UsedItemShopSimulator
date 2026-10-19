@@ -70,7 +70,12 @@
 <div class="step"><span class="index">1</span><div><h2>今日の持ち込み商品</h2><p>品物を見極め、買取提示額と店頭販売価格を決める。</p></div></div>
 <details class="stage-help"><summary>？ 仕入と交渉のルール</summary><p>提示額を安くすると買取に成功しにくくなります。希望額で買うか、交渉するかを選びます。失敗時の追加購入は事前に選択した場合のみです。</p></details><p id="visitorSchedule" class="budget">今日の来客予定を確認中...</p><div id="offers" class="offers"></div><div class="seller-actions"><button id="sellerRespondBtn" type="button" disabled>この条件で買い取る</button><button id="sellerSkipBtn" type="button" disabled>この人を見送る</button></div></section>
 <section class="stage" id="inventoryStage" data-shop-screen="stock"><div class="step"><span class="index">2</span><div><h2>店頭の在庫と値付け</h2><p>売れ残った商品は、価格の変更や状態に応じた修理ができます。修理には現金が必要です。</p></div></div><p class="hint">📦 買い取った品物はいったん倉庫へ。必要なら🔧修理台へ送り、整備後に🏬売場へ並べます。自動で売り出すことはありません。</p>
-<details class="stage-help"><summary>？ 倉庫・修理・販売のルール</summary><p>倉庫の商品は自動では売れません。修理台で整備し、売場へ移動すると販売対象になります。状態や価格によって売れやすさが変わります。</p></details><div class="warehouse-pages"><strong id="warehousePageLabel">倉庫 1ページ</strong><button type="button" id="warehousePrev">前の9点</button><button type="button" id="warehouseNext">次の9点</button></div><div id="inventory" class="scroll-table"></div>
+<details class="stage-help"><summary>？ 倉庫・修理・販売のルール</summary><p>倉庫の商品は自動では売れません。修理台で整備し、売場へ移動すると販売対象になります。状態や価格によって売れやすさが変わります。</p></details><div class="warehouse-pages"><strong id="warehousePageLabel">倉庫 1ページ</strong><button type="button" id="warehousePrev">前の9点</button><button type="button" id="warehouseNext">次の9点</button></div><div class="clearance-controls">
+ <div><strong>長期在庫の一括値引き</strong>
+  <p>仕入から7日以上経過した倉庫・売場の商品、または状態C以下の商品だけを対象にします。金額は確定前に各商品欄で確認できます。</p></div>
+ <label>値引率 <select id="agedDiscountPct"><option value="20">20％オフ</option><option value="50">半額（50％オフ）</option></select></label>
+ <button type="button" id="agedDiscountBtn">対象商品の値段を一括変更する</button>
+ <p id="agedDiscountNotice" role="status" class="hint"></p></div><div id="inventory" class="scroll-table"></div>
 <button id="applyPlanBtn" type="button" class="primary">値付け・修理台への移動・陳列を反映する</button>
 <p class="hint">修理台へ移した商品は、左の「修理」タブから道具を選んで整備できます。</p>
 </section>
