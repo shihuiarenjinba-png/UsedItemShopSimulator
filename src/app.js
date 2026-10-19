@@ -256,7 +256,7 @@
        ' ｜ 仕入後'+(p.ageDays??0)+'日'+
        (p.repairProgress!==undefined?' ｜ 整備 '+p.repairProgress+'%（'+(p.repairProgress<100?'現状品':'整備済み')+'）':'')),
        el('td','',p.grade),el('td','',yen(p.cost)));
-     const inp=field('price','',p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
+     const inp=field('price','',p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.dataset.basePrice=String(p.price);inp.input.dataset.ageDays=String(p.ageDays??0);inp.input.dataset.grade=String(p.grade);inp.input.dataset.zone=String(p.zone);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
      const rehab=el('td');
      if(p.grade!=='A'){
        const wrap=el('label','toggle'),check=el('input');
@@ -280,6 +280,24 @@
        ' ｜ 利益目標 '+yen(advice.target)+(p.price<advice.breakEven?' ⚠ 採算割れのおそれ':'')));
      body.append(row);
    }table.append(body);root.append(table);
+ }
+ function applyAgedDiscount(){
+  if(recoveryBlocked||onboardingRequired||state.pendingMonth){$('agedDiscountNotice').textContent='営業中の在庫変更または復元ができない状態です。';return;}
+  const pct=Number($('agedDiscountPct').value);
+  if(![20,50].includes(pct))return;
+  let count=0;
+  for(const input of document.querySelectorAll('[data-stock-price]')){
+    const age=Number(input.dataset.ageDays),grade=input.dataset.grade,zone=input.dataset.zone;
+    if(zone==='workshop'||!(age>=7||grade==='C'||grade==='D'))continue;
+    const original=Number(input.dataset.basePrice);
+    if(!Number.isSafeInteger(original)||original<1)continue;
+    input.value=String(Math.max(1,Math.floor(original*(100-pct)/100)));
+    count++;
+  }
+  $('agedDiscountNotice').textContent=count?
+   count+'点を'+pct+'％引きへ変更しました。内容を確認し、「値付け・修理台への移動・陳列を反映する」で確定してください。':
+   '対象となる長期在庫・状態の悪い商品はこのページにありません。別ページも確認してください。';
+  refreshBudget();
  }
  function plan(){const buy=[],prices=[],repairs=[],list=[];for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){const id=Number(check.dataset.offerId);const mode=document.querySelector('[data-offer-mode="'+id+'"]').value;
      const fallback=document.querySelector('[data-offer-fallback="'+id+'"]').value;
@@ -578,6 +596,7 @@
    $('sellerRespondBtn').addEventListener('click',()=>answerSeller(true));
    $('sellerSkipBtn').addEventListener('click',()=>answerSeller(false));
    $('applyPlanBtn').addEventListener('click',()=>applyPlan(true));
+   $('agedDiscountBtn').addEventListener('click',applyAgedDiscount);
    $('soundToggleBtn').addEventListener('click',toggleSound);
    $('warehousePrev').addEventListener('click',()=>{warehousePage=Math.max(0,warehousePage-1);renderInventory();});
    $('warehouseNext').addEventListener('click',()=>{warehousePage++;renderInventory();});
