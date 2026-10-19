@@ -7,6 +7,20 @@
  let clock,lastTick=0,clockTimer=null,clockNotice='',monthNotice='';
 
  let selectedRepairId=null,warehousePage=0,workbenchNotice='';
+ // Unsaved edit draft only. Neither the live engine nor a save is changed until Apply.
+ const stagedStockPrices=new Map();
+ function rememberVisibleStockPrices(){
+  for(const field of document.querySelectorAll('[data-stock-price]')){
+   const id=Number(field.dataset.stockPrice),value=Number(field.value);
+   if(Number.isSafeInteger(id)&&Number.isSafeInteger(value)&&value>=1&&value<=1000000)
+    stagedStockPrices.set(id,value);
+  }
+ }
+ function resetStockDraft(){
+  stagedStockPrices.clear();
+  $('inventory')?.replaceChildren();
+ }
+
  const live=()=>state.liveSession??null;
  const storeItems=()=>live()?.inventory??state.inventory;
  const shopCash=()=>live()?.cash??state.cash;
@@ -19,7 +33,7 @@
    commitLive(L.configure(state,ensureLive(),requested));clockNotice='在庫・機材の変更を反映しました。';
    workbenchNotice=requested.repairs.length?
      '修理台へ'+requested.repairs.length+'点を移動しました。使う工具を選んでください。':'';
-   refresh();
+   resetStockDraft();refresh();
    if(revealRepair&&requested.repairs.length)window.ShopScreens?.select('repair');
    return true;
   }catch(e){clockNotice=e.message;workbenchNotice=e.message;updateClock();refreshBudget();return false;}
@@ -239,7 +253,7 @@
      const label=el('label','toggle'),check=el('input');check.type='checkbox';check.dataset.offerId=String(item.id);label.append(check,document.createTextNode(' この商品を買い取る'));box.append(label);container.append(box);
    }
  }
- function renderInventory(){const root=$('inventory');root.replaceChildren();if(!storeItems().length){
+ function renderInventory(){rememberVisibleStockPrices();const root=$('inventory');root.replaceChildren();if(!storeItems().length){
      $('warehousePageLabel').textContent='📦 倉庫 0点';
      $('warehousePrev').disabled=true;$('warehouseNext').disabled=true;
      root.append(el('p','hint','まだ在庫がありません。来店した売り手から買い取りましょう。'));return;}
@@ -256,7 +270,7 @@
        ' ｜ 仕入後'+(p.ageDays??0)+'日'+
        (p.repairProgress!==undefined?' ｜ 整備 '+p.repairProgress+'%（'+(p.repairProgress<100?'現状品':'整備済み')+'）':'')),
        el('td','',p.grade),el('td','',yen(p.cost)));
-     const inp=field('price','',p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.dataset.basePrice=String(p.price);inp.input.dataset.ageDays=String(p.ageDays??0);inp.input.dataset.grade=String(p.grade);inp.input.dataset.zone=String(p.zone);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
+     const inp=field('price','',stagedStockPrices.get(p.id)??p.price);inp.input.dataset.stockPrice=String(p.id);inp.input.dataset.basePrice=String(p.price);inp.input.dataset.ageDays=String(p.ageDays??0);inp.input.dataset.grade=String(p.grade);inp.input.dataset.zone=String(p.zone);inp.input.setAttribute('aria-label',E.TYPES[p.type].name+'の販売価格');const td=el('td');td.append(inp.input);row.append(td);
      const rehab=el('td');
      if(p.grade!=='A'){
        const wrap=el('label','toggle'),check=el('input');
@@ -282,28 +296,34 @@
    }table.append(body);root.append(table);
  }
  function applyAgedDiscount(){
-  if(recoveryBlocked||onboardingRequired||state.pendingMonth){$('agedDiscountNotice').textContent='営業中の在庫変更または復元ができない状態です。';return;}
+  if(recoveryBlocked||onboardingRequired||state.pendingMonth){
+   $('agedDiscountNotice').textContent='セーブ復元中や月末決算中は変更できません。';return;
+  }
   const pct=Number($('agedDiscountPct').value);
   if(![20,50].includes(pct))return;
+  rememberVisibleStockPrices();
   let count=0;
-  for(const input of document.querySelectorAll('[data-stock-price]')){
-    const age=Number(input.dataset.ageDays),grade=input.dataset.grade,zone=input.dataset.zone;
-    if(zone==='workshop'||!(age>=7||grade==='C'||grade==='D'))continue;
-    const original=Number(input.dataset.basePrice);
-    if(!Number.isSafeInteger(original)||original<1)continue;
-    input.value=String(Math.max(1,Math.floor(original*(100-pct)/100)));
-    count++;
+  for(const item of storeItems()){
+   if(item.zone==='workshop'||!((item.ageDays??0)>=7||item.grade==='C'||item.grade==='D'))continue;
+   const price=Number(item.price);
+   if(!Number.isSafeInteger(price)||price<1)continue;
+   stagedStockPrices.set(item.id,Math.max(1,Math.floor(price*(100-pct)/100)));
+   count++;
   }
+  // Re-render the visible page without capturing its pre-discount values again.
+  $('inventory').replaceChildren();
+  renderInventory();
   $('agedDiscountNotice').textContent=count?
-   count+'点を'+pct+'％引きへ変更しました。内容を確認し、「値付け・修理台への移動・陳列を反映する」で確定してください。':
-   '対象となる長期在庫・状態の悪い商品はこのページにありません。別ページも確認してください。';
+   '全在庫から'+count+'点を'+pct+'％引きで仮設定しました（倉庫の別ページも含む）。内容を確認し、「値付け・修理台への移動・陳列を反映する」で確定してください。':
+   '長期在庫や状態の悪い商品は現在ありません。';
   refreshBudget();
  }
- function plan(){const buy=[],prices=[],repairs=[],list=[];for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){const id=Number(check.dataset.offerId);const mode=document.querySelector('[data-offer-mode="'+id+'"]').value;
+ function plan(){rememberVisibleStockPrices();const buy=[],prices=[],repairs=[],list=[];for(const check of document.querySelectorAll('[data-offer-id]'))if(check.checked){const id=Number(check.dataset.offerId);const mode=document.querySelector('[data-offer-mode="'+id+'"]').value;
      const fallback=document.querySelector('[data-offer-fallback="'+id+'"]').value;
      buy.push({id,price:Number(document.querySelector('[data-offer-price="'+id+'"]').value),
        mode,bid:Number(document.querySelector('[data-offer-bid="'+id+'"]').value),fallback});}
-   for(const input of document.querySelectorAll('[data-stock-price]'))prices.push({id:Number(input.dataset.stockPrice),price:Number(input.value)});
+   const actualIds=new Set(storeItems().map(item=>item.id));
+   for(const [id,price] of stagedStockPrices)if(actualIds.has(id))prices.push({id,price});
    for(const checkbox of document.querySelectorAll('[data-repair-id]'))if(checkbox.checked)repairs.push(Number(checkbox.dataset.repairId));
    for(const checkbox of document.querySelectorAll('[data-list-id]'))if(checkbox.checked)list.push(Number(checkbox.dataset.listId));
    return {buy,prices,repairs,list,equipmentUpgrade:$('equipmentUpgrade')?.checked===true};}
@@ -521,7 +541,7 @@
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;stopClock();if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
     if(next.liveSession)L.validate(next,next.liveSession);
-    state=next;clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
+    state=next;resetStockDraft();clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
     if(live()){
       const floor=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
       if(clock.elapsedMs<floor)clock={...clock,elapsedMs:floor,paused:true};
@@ -532,7 +552,7 @@
    if(!onboardingRequired||recoveryBlocked)return;
    const selected=$('openingModeHard').checked?'hard':$('openingModeNormal').checked?'normal':'easy';
    try{
-     state=E.startGame(selected);selectedRepairId=null;clock=T.initial(state.day);saveClock();
+     state=E.startGame(selected);resetStockDraft();selectedRepairId=null;clock=T.initial(state.day);saveClock();
      onboardingRequired=false;lastReport=null;repayNotice='';notice='';
      if(!persist())throw Error('開業情報を保存できませんでした。別の場所に保存してください。');
      refresh();
@@ -543,7 +563,7 @@
      '壊れたセーブの原文を別枠へ保管してから、新しい開業モード選択へ戻ります。よろしいですか？':
      '現在のプレイを別枠にバックアップし、開業モードを選び直しますか？';
    if(!confirm(warning))return;
-   stopClock();
+   stopClock();resetStockDraft();
    try{
      const original=recoveryBlocked?originalRaw:localStorage.getItem(KEY);
      if(original!==null)localStorage.setItem(BACKUP_KEY,original);
