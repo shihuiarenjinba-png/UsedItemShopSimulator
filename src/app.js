@@ -555,9 +555,15 @@
  }
  function run(){beginDay();}
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
- async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());const next=E.validate(raw.state);if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');if(!confirm('保存済みの進行状況に置き換えますか？'))return;stopClock();if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
+ async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');
+    const next=E.validate(raw.state);
     if(next.liveSession)L.validate(next,next.liveSession);
-    state=next;clearStockDrafts();clock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
+    // Validate every imported component before pausing the current game, writing a
+    // backup, or replacing in-memory state. Invalid clocks must be non-destructive.
+    const nextClock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
+    if(!confirm('保存済みの進行状況に置き換えますか？'))return;
+    if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
+    stopClock();state=next;clearStockDrafts();clock=nextClock;
     if(live()){
       const floor=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
       if(clock.elapsedMs<floor)clock={...clock,elapsedMs:floor,paused:true};
