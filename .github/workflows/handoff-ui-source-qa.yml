@@ -1,0 +1,19 @@
+name: Handoff UI source QA
+on:
+  push:
+    branches:
+      - work/ui-handoff-review-20261025
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-and-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify buyer-facing UI and complete game regression
+        run: npm test
