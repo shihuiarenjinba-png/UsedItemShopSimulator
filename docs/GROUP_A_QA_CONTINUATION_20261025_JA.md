@@ -16,7 +16,7 @@
 | Night Office Auditor (低価格版) | `6399083d05d35b639d17addaa778772702c9545d` | source42/42・Windows Electron 4PNG・unsigned MSIX 同一run [40155379054](https://github.com/shihuiarenjinba-png/NightOfficeAuditor/actions/runs/40155379054) | Store署名等未実施 |
 
 ## Private5製品 — QAスクリプト・画面チェック準備済み、実行HOLD
-| 製品 | 最新作業HEAD | 最新Run | 実行 |
+| 製品 | QA対象のソース・テスト実装コミット（資料更新前） | 最新QA Run | 実行 |
 |---|---|---|---|
 | Used Item Shop Simulator | `3bb0598517855b9edb0dd189f133410794344b8e` | [40156814535](https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/actions/runs/40156814535) | Runner ID=0 / steps=0 |
 | Factory Inspection Simulator | `66815da7515eb48060b347b924d9e5bb09200f3f` | [40156821260](https://github.com/shihuiarenjinba-png/FactoryInspectionSimulator/actions/runs/40156821260) | Runner ID=0 / steps=0 |
