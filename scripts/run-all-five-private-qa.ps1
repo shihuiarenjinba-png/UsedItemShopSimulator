@@ -34,9 +34,9 @@ foreach ($target in $targets) {
      $entry.sourceCommit=$sha
      $runner=Join-Path $where 'scripts/run-unified-qa-windows.ps1'
      if (-not (Test-Path $runner)) { throw 'The expected QA runner script is missing from this branch.' }
-     $args=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$runner)
-     if ($SkipInstall) { $args+='-SkipInstall' }
-     & powershell.exe @args
+     $runnerArgs=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$runner)
+     if ($SkipInstall) { $runnerArgs+='-SkipInstall' }
+     & powershell.exe @runnerArgs
      if ($LASTEXITCODE -ne 0) { throw "Windows source/UI tests failed (exit $LASTEXITCODE)." }
      $resultFile=Join-Path $where 'unified-ui-evidence/LOCAL_QA_HANDOFF.json'
      if (-not (Test-Path $resultFile)) { throw 'No QA proof. PASS may not be inferred.' }
