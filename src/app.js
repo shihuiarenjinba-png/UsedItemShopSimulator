@@ -568,7 +568,7 @@
       const floor=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
       if(clock.elapsedMs<floor)clock={...clock,elapsedMs:floor,paused:true};
     }
-    saveClock();onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=null;repayNotice='';
+    saveClock();onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=next.lastReport??null;repayNotice='';
     notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
  function startWithMode(){
    if(!onboardingRequired||recoveryBlocked)return;
