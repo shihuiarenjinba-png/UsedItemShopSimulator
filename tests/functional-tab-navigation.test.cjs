@@ -65,6 +65,16 @@ test("navigation selects only the proper station; repair, month settlement, and 
  assert.equal(registry.recordsDetails.open,true);
  window.ShopScreens.select("stock");
  assert.equal(registry.inventoryStage.hidden,false);assert.equal(registry.workshopStage.hidden,true);
+ // A waiting seller must not force the UI back to 'buy' on every state refresh.
+ window.ShopScreens.update({month:false,seller:true});
+ assert.equal(window.ShopScreens.current(),"stock");
+ window.ShopScreens.update({month:false,seller:false});
+ window.ShopScreens.update({month:false,seller:true});
+ assert.equal(window.ShopScreens.current(),"buy","a genuinely new arrival should bring the player to the counter");
+ window.ShopScreens.select("repair");
+ window.ShopScreens.update({month:false,seller:true});
+ assert.equal(window.ShopScreens.current(),"repair","player can inspect workshop even with a waiting seller");
+
 });
 test("new tab system does not change engine rules or save-format keys",()=>{
  assert.doesNotMatch(source,/localStorage|\.cash\s*=|\.inventory\s*=|new XMLHttpRequest|\bfetch\s*\(/);
