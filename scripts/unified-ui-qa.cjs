@@ -16,6 +16,29 @@ const output=path.resolve("unified-ui-evidence");fs.mkdirSync(output,{recursive:
    assert.equal(await onboarding.isVisible(),false,"shop must open after selecting starting finances");
    assert.equal(await p.locator("#gameShell").isVisible(),true);
   }
+  // Gameplay and backup regression: a completed day must survive reset/restore,
+  // including the visible daily sales report. Navigation-only QA misses this.
+  await p.locator('[data-shop-tab="day"]').click();
+  const beforeDay=await p.evaluate(()=>JSON.parse(localStorage.getItem("used-item-shop:save:v1")).day);
+  await p.locator("#fastForwardBtn").click();
+  const completedSave=await p.evaluate(()=>JSON.parse(localStorage.getItem("used-item-shop:save:v1")));
+  assert.equal(completedSave.day,beforeDay+1,"closing the day must advance the save");
+  assert.ok(completedSave.lastReport && Number.isFinite(completedSave.lastReport.revenue),
+    "a day must produce a persisted sales report");
+  const beforeRestoreReport=await p.locator("#report").innerText();
+  assert.match(beforeRestoreReport,/今日の売上/,"daily result is not visible");
+  await p.locator('[data-shop-tab="records"]').click();
+  await p.locator("#recordsStage details").evaluate(node=>{node.open=true;});
+  await p.locator("#resetBtn").click();
+  assert.equal(await p.locator("#openingScreen").isVisible(),true,
+    "reset must return to the opening screen");
+  await p.locator("#restoreFromOpeningBtn").click();
+  assert.equal(await p.locator("#gameShell").isVisible(),true,
+    "backup restoration must return to gameplay");
+  const recoveredSave=await p.evaluate(()=>JSON.parse(localStorage.getItem("used-item-shop:save:v1")));
+  assert.deepEqual(recoveredSave,completedSave,"restore must recover the full original save");
+  assert.equal(await p.locator("#report").innerText(),beforeRestoreReport,
+    "restore must re-render the same saved daily result");
   const title=await p.title();assert.ok(title.length>4,"missing game window title");
   const text=await p.locator("body").innerText();assert.ok(text.length>60,"game content not painted");
   await p.screenshot({path:path.join(output,"01-desktop-1280x720.png"),fullPage:false});
