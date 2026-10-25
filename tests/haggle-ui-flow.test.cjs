@@ -203,3 +203,36 @@ test("sound effects are opt-in, persist mode, and work without audio hardware",(
  restored.nodes.soundToggleBtn.click();
  assert.equal(restored.current().settings.soundEnabled,false);
 });
+async function uploadJson(ui,payload){
+ const raw=JSON.stringify(payload),file={size:raw.length,text:async()=>raw};
+ const target={files:[file],value:"data.json"};
+ ui.nodes.importFile.listeners.change({target});
+ await new Promise(resolve=>setImmediate(resolve)); // allow async File.text and validation
+}
+test("malformed imported clock must not overwrite current game, backup, or later progress",async()=>{
+ const ui=boot(undefined,{mode:"normal"});
+ ui.skip();
+ const original=ui.storage.get(ui.key);
+ const backupKey="used-item-shop:previous-run:v1",backup=ui.storage.get(backupKey)??null;
+ const incoming=E.startGame("hard",23);
+ await uploadJson(ui,{schema:E.VERSION,state:incoming,clock:{day:99,elapsedMs:0,paused:true,durationMs:T.DAY_MS}});
+ assert.equal(ui.storage.get(ui.key),original,"current save is preserved");
+ assert.equal(ui.storage.get(backupKey)??null,backup,"invalid data must not disturb a prior backup");
+ assert.equal(ui.current().finance.mode,"normal");
+ ui.skip();
+ assert.equal(ui.current().day,3,"in-memory game must remain playable after rejected import");
+});
+test("valid save import restores its daily report and backs up the previous save",async()=>{
+ const incoming=boot(undefined,{mode:"hard"});
+ incoming.skip();
+ const imported=incoming.current();
+ const ui=boot(undefined,{mode:"normal"});
+ ui.skip();
+ const before=ui.storage.get(ui.key);
+ await uploadJson(ui,{schema:E.VERSION,state:imported,clock:T.initial(imported.day)});
+ assert.equal(ui.current().finance.mode,"hard");
+ assert.equal(JSON.stringify(ui.current()),JSON.stringify(imported));
+ assert.equal(ui.storage.get("used-item-shop:previous-run:v1"),before,"original game is recoverable");
+ assert.match(ui.nodes.report.textContent,/今日の売上/,"report must remain visible after import");
+ assert.doesNotMatch(ui.nodes.report.textContent,/営業後に、売れた品物/);
+});
