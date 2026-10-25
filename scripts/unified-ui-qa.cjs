@@ -8,6 +8,14 @@ const output=path.resolve("unified-ui-evidence");fs.mkdirSync(output,{recursive:
   const ctx=await browser.newContext({viewport:{width:1280,height:720}}),p=await ctx.newPage();
   const listen=x=>{x.on("pageerror",e=>errors.push(e.message));x.on("request",r=>{if(/^https?:/.test(r.url()))network.push(r.url());});x.on("dialog",d=>d.accept());};
   listen(p);await p.goto(url.pathToFileURL(path.resolve("index.html")).href,{waitUntil:"load"});
+  const onboarding=p.locator("#openingScreen");
+  if(await onboarding.count() && await onboarding.isVisible()){
+   const start=p.locator("#startGameBtn");
+   assert.equal(await start.isVisible(),true,"new shop should have accessible start button");
+   await start.click();
+   assert.equal(await onboarding.isVisible(),false,"shop must open after selecting starting finances");
+   assert.equal(await p.locator("#gameShell").isVisible(),true);
+  }
   const title=await p.title();assert.ok(title.length>4,"missing game window title");
   const text=await p.locator("body").innerText();assert.ok(text.length>60,"game content not painted");
   await p.screenshot({path:path.join(output,"01-desktop-1280x720.png"),fullPage:true});
@@ -29,6 +37,7 @@ const output=path.resolve("unified-ui-evidence");fs.mkdirSync(output,{recursive:
   }
   const mobile=await browser.newContext({viewport:{width:1024,height:768}}),q=await mobile.newPage();
   listen(q);await q.goto(url.pathToFileURL(path.resolve("index.html")).href,{waitUntil:"load"});
+  if(await q.locator("#openingScreen").isVisible())await q.locator("#startGameBtn").click();
   const metrics=await q.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth}));
   assert.ok(metrics.scrollWidth<=metrics.viewport+2,"horizontal overflow at 1024px: "+JSON.stringify(metrics));
   await q.screenshot({path:path.join(output,"03-compact-1024x768.png"),fullPage:true});
