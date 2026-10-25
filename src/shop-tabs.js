@@ -29,9 +29,13 @@
   return true;
  }
  function update({month=false,seller=false}={}){
+  const monthBecameDue=!!month&&!monthReady;
+  const sellerJustArrived=!!seller&&!sellerWaiting;
   monthReady=!!month;sellerWaiting=!!seller;
-  if(monthReady&&current!=="money")return select("money");
-  if(sellerWaiting&&!monthReady&&current!=="buy")return select("buy");
+  // Automatic navigation reacts to NEW urgent events, not to every rerender.
+  // Otherwise a pending seller prevents the player from opening other tabs.
+  if(monthBecameDue&&current!=="money")return select("money");
+  if(sellerJustArrived&&!monthReady&&current!=="buy")return select("buy");
   return select(current);
  }
  function init(){
