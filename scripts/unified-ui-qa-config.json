@@ -3,5 +3,7 @@
   "nav": "shopTabs",
   "tabs": 7,
   "devCopyHold": false,
-  "entranceSelector": null
+  "entranceSelector": null,
+  "expectedTabs": 7,
+  "panelSelector": "[data-shop-screen]"
 }
