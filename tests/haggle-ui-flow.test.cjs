@@ -9,7 +9,7 @@ const IDS=["day","cash","stock","sold","offers","inventory","budget","openBtn","
 "gameClock","clockProgress","clockBar","timeLabel","pauseBtn","fastForwardBtn","timeMessage",
 "monthPanel","monthSummary","monthRepayment","monthPayBtn","monthSkipBtn","monthMessage",
 "sellerRespondBtn","sellerSkipBtn","warehousePageLabel","warehousePrev","warehouseNext","workbench",
-"toolShop","applyPlanBtn","visitorLog","soundToggleBtn",
+"toolShop","applyPlanBtn","visitorLog","soundToggleBtn","agedDiscountNotice","agedDiscountPct","agedDiscountBtn",
 "shopMapTitle","sceneStatus","sceneClock","sceneSeller","sceneWorkshop","sceneShelf","sceneVisitors"];
 function boot(savedRaw,{mode="easy",start=true,timeRaw=null}={}){
  const nodes={},listeners={},storage=new Map(),key="used-item-shop:save:v1";
