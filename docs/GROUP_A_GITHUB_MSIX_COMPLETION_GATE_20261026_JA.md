@@ -17,7 +17,7 @@
 | Handover Room | 88b6262e9509512755f30f8d693c9286bb6e3f7f / work/unified-qa-20261025 | MSIX workflow Run https://github.com/shihuiarenjinba-png/game-new/actions/runs/40258730905 がステップ0で失敗。MSIXなし |
 | EKIDEN MANAGER | 5fcbc8b25d69fccd7a20f1c5a077025d20a274a5 / work/unified-qa-20261025 | MSIX workflow Run https://github.com/shihuiarenjinba-png/game-stadium/actions/runs/40258735017 がステップ0で失敗。MSIXなし |
 | LUCK LAB | 6cf095c02347148733bae33ca836744022e984d3 / work/unified-qa-20261025 | 保護原本66ファイル無変更。MSIX workflow Run https://github.com/shihuiarenjinba-png/game/actions/runs/40259522627 がステップ0で失敗。MSIXなし。Repo varsのIdentityを推測しない |
-| Night Office Auditor - paid 24 cases | 02ce5c67fffc2f5ff15a267cc7ec61cc9367bda1 / work/paid-24case-integration-20261024 | Store製品用の別本体・MSIX Builder/Manifest/Hash検証・Windows workflowを追加。ただし独立Identityが未確認。MSIX未生成、HOLD artifactあり。Run https://github.com/shihuiarenjinba-png/Night-Office-Auditor-2/actions/runs/40259394218 |
+| Night Office Auditor - paid 24 cases | 7c77bd70921af1177e0ef04c30afa3744f2596cc / work/paid-24case-integration-20261024 | Store製品用の別本体・MSIX Builder/Manifest/Hash検証・Windows workflowを追加。ただし独立Identityが未確認。MSIX未生成。Source/Game tests成功・HOLD JSONアップロード成功の後、MSIXゲートを明示的にfailureとして停止。Run https://github.com/shihuiarenjinba-png/Night-Office-Auditor-2/actions/runs/40260153047 |
 
 現状は **9製品中3製品のGitHub未署名内部MSIX候補が確認できている**。これは販売審査PASS、正式署名・実機インストール完了を意味しない。
 
