@@ -6,18 +6,18 @@
 | --- | --- | --- | --- |
 | Used Item Shop Simulator | `work/ui-handoff-review-20261025` | セーブ復元後の営業結果消去を修正。不正な時計を含むJSONは現行プレイ/バックアップを変更する前に拒否。正常インポート時は営業結果を再表示。Nodeテスト2件を追加（破損時計・正常インポート）。Playwrightは営業終了→リセット→バックアップ復元まで検証する | `32b608afd173fb2b48cd4dabb706a940eb427e34` |
 | Factory Inspection Simulator | `work/ui-handoff-review-20261025` | Playwrightで実注文処理、検査方針、利益表示、台帳追加、再起動後のセーブ一致を確認する | `d1e441cc67ca7e1ca10d90d64d56af1126281c0a` |
-| Handover Room | `work/unified-qa-20261025` | Playwrightで3択の物語選択、進行ゲージの増加、自動保存、再読込の状態継続を確認する | `ccae96fdf5c19bce3a2dc7112faebd6e46a3fdde` |
+| Handover Room | `work/unified-qa-20261025` | Playwrightで3択の物語選択・保存継続を確認。加えて、読めない元セーブを保護し通常の選択を停止、元データ書き出し/明示的リセットのみ許可。破損セーブの黙示的上書き防止をブラウザ検査 | `d62c7be67e57a707d541bf2fab7e648dfcc71c31` |
 | EKIDEN MANAGER | `work/unified-qa-20261025` | Playwrightで週間練習を1回実行、週次進行、年度不変、台帳保持、再読込の完全一致を確認する | `883f9fde4285c75b866c8c91caad1b25d83466ef` |
 | LUCK LAB | `work/unified-qa-20261025` | Playwrightで本編入場、1回のスロット遊技、架空チップ増減と損益の一致、履歴保存、再読み込みを検証。保護原本66ファイルは変更していない | `34f57d6ad5cc714ac1069d4b3d8129c98227e9f2` |
 
-**重要**: 構文解析上のエラーがないことは確認したが、上記PlaywrightのWindows実行結果は未取得。Nodeテスト2件も未実行。いずれも「PASS」としない。
+**重要**: 構文解析上のエラーがないことは確認したが、上記PlaywrightのWindows実行結果は未取得。Nodeテスト2件も未実行。引継ぎ室の破損セーブ保護も静的構文確認のみで実操作未検証。いずれも「PASS」としない。
 
 ## 2. GitHub Actionsの最新観測（2026-10-26 JST）
 | 製品 | 直近確認Run | 状態 |
 | --- | --- | --- |
 | Used Item Shop Simulator | [40246494365](https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/actions/runs/40246494365) | failure / 実行ステップ0 |
 | Factory Inspection Simulator | [40246612156](https://github.com/shihuiarenjinba-png/FactoryInspectionSimulator/actions/runs/40246612156) | failure / 実行ステップ0 |
-| Handover Room | [40246708967](https://github.com/shihuiarenjinba-png/game-new/actions/runs/40246708967) | failure / 実行ステップ0 |
+| Handover Room | [40247177729](https://github.com/shihuiarenjinba-png/game-new/actions/runs/40247177729) | failure / 実行ステップ0 |
 | EKIDEN MANAGER | [40246762217](https://github.com/shihuiarenjinba-png/game-stadium/actions/runs/40246762217) | failure / 実行ステップ0 |
 | LUCK LAB | [40246820680](https://github.com/shihuiarenjinba-png/game/actions/runs/40246820680) | failure / 実行ステップ0 |
 
