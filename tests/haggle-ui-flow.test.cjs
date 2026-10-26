@@ -41,13 +41,15 @@ function boot(savedRaw,{mode="easy",start=true,timeRaw=null}={}){
   createTextNode:v=>{const n=new Element("text");n.textContent=v;return n},
   addEventListener:(type,fn)=>listeners[type]=fn,querySelectorAll:queryAll,
   querySelector:s=>queryAll(s)[0]??null,body:{append(){}}};
- let now=0,ticker=null,lastDownload=null;
+ let now=0,ticker=null,lastDownload=null,blockedWriteKey=null;const alerts=[];
  const URL={createObjectURL(blob){lastDownload=blob.parts.join("");return "blob:local"},revokeObjectURL(){}};
  const Blob=class{constructor(parts){this.parts=parts}};
  const context={window:{UsedItemShop:E,ShopTime:T,ShopLive:L,addEventListener(){}},
-   document,localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
+   document,localStorage:{getItem:k=>storage.get(k)??null,
+     setItem:(k,v)=>{if(k===blockedWriteKey)throw Error("test: storage denied "+k);storage.set(k,v);},
+     removeItem:k=>storage.delete(k)},
    performance:{now:()=>now},setInterval:fn=>{ticker=fn;return 5},clearInterval:()=>{ticker=null},
-   setTimeout:()=>{},alert:()=>{},confirm:()=>true,Blob,URL};
+   setTimeout:()=>{},alert:msg=>alerts.push(msg),confirm:()=>true,Blob,URL};
  vm.runInNewContext(source,context,{filename:"src/app.js"});
  listeners.DOMContentLoaded();
  if(start&&savedRaw===undefined){
@@ -56,7 +58,8 @@ function boot(savedRaw,{mode="easy",start=true,timeRaw=null}={}){
   nodes.openingModeHard.checked=mode==="hard";
   nodes.startGameBtn.click();
  }
- return {nodes,storage,key,queryAll,lastDownload:()=>lastDownload,
+ return {nodes,storage,key,queryAll,lastDownload:()=>lastDownload,alerts,
+  blockWrite:key=>{blockedWriteKey=key;},
   simulate(ms){let left=ms;while(left>0&&ticker){const dt=Math.min(left,5000);left-=dt;now+=dt;ticker();}},
   current(){return JSON.parse(storage.get(key))},
   seller(){return this.current().liveSession?.pendingSeller},
@@ -253,4 +256,15 @@ test("importing a save keeps the old clock paired with its original backup",asyn
  const restoredClock=JSON.parse(ui.storage.get("used-item-shop:active-time:v1"));
  assert.equal(restoredClock.elapsedMs,JSON.parse(activeTime).elapsedMs);
  assert.equal(restoredClock.paused,true,"clock should pause across reload");
+});
+test("import failure at the final clock write restores current save and all backup keys",async()=>{
+ const ui=boot(undefined,{mode:"normal"});ui.nodes.openBtn.click();ui.simulate(5000);
+ const before=new Map(ui.storage),beforeCash=ui.nodes.cash.textContent;
+ ui.blockWrite("used-item-shop:active-time:v1");
+ const incoming=E.startGame("hard",30);
+ await uploadJson(ui,{schema:E.VERSION,state:incoming,clock:T.initial(incoming.day)});
+ assert.deepEqual([...ui.storage],[...before],"the entire local save bundle must be unchanged");
+ assert.equal(ui.nodes.cash.textContent,beforeCash,"current in-memory game must not change");
+ assert.equal(ui.alerts.length,1);
+ assert.match(ui.alerts[0],/保存に失敗/);
 });
