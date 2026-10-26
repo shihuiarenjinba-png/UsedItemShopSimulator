@@ -45,3 +45,14 @@
 - 改善でsource HEADが更新された場合は古いMSIXを現行版と扱わず、GitHub上で再生成する。
 
 **結論: 現在はGitHub工程継続。完全引継ぎは未実施。**
+
+## 5. 2026-10-26 Runner切り分け（新たな確定事実）
+- この9製品をGitHub APIのrepository visibilityで照合：**MSIX成功済み3製品とWindowsプレビュー/ゲームQA成功の24案件版はpublic**。MSIXジョブ開始前に止まるUsed Item Shop / Factory Inspection / Handover Room / EKIDEN / LUCK LABの5製品は**private**。
+- [診断Run 40260844037](https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/actions/runs/40260844037): privateのUsed Item Shopにソース checkoutなしの最小ジョブ2つ（ubuntu-latest, windows-latest）を新設・実行。両方とも**失敗、0ステップ**。Windows SDK、npm、商品コード、MSIXビルダーではなく、ジョブが始まる前に停止していることを再現した。
+- [MSIX Run 40258721035](https://github.com/shihuiarenjinba-png/UsedItemShopSimulator/actions/runs/40258721035)は失敗ジョブ再実行（attempt 2）も0ステップで停止。
+- GitHub公式「GitHub Actions billing」: public標準ランナーは無料、private hosted runnerはアカウント別の分数・ストレージ無料枠/課金制約を受ける。利用枠消費・未登録支払いなどでブロックし得るが、**本アカウントの実際の請求状態はこのGitHubコネクタで未取得**であり、課金が根本原因と断定しない。
+  - https://docs.github.com/en/billing/concepts/product-billing/github-actions
+  - https://docs.github.com/en/actions/concepts/billing-and-usage
+- 次の管理者確認（リポジトリを公開化しないまま）: GitHub Settings → Billing & licensing → Usage / BudgetsでActions利用枠・予算停止・支払方法の状態を閲覧し、対象Private repositoryのSettings → Actions → GeneralとRunner設定を閲覧する。**この資料は支払い方法登録・課金上限増額を指示または承認するものではない**。
+- 次の手段の優先順位: (1) 非公開のままActions実行制限を管理者が解決、(2) 許可された信頼できるWindows self-hosted runnerが利用可能ならその安全運用を別途承認、(3) ローカルWindowsでのMSIX作成は「GitHubで生成」という現在の分担要件を満たさないため、変更承認なしに代替引継ぎ扱いしない。
+- 根因が解消したら既存MSIX workflows（現在のWork HEADから起動するよう設定済み）で再ビルドし、ジョブSteps PASS・Artifact実体・Package SHAを確認する。それまでは5製品のMSIXを**未生成**として維持。
