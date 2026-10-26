@@ -1,0 +1,25 @@
+name: Runner allocation diagnostic (no source execution)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - work/ui-handoff-review-20261025
+    paths:
+      - '.github/workflows/runner-allocation-diagnostic.yml'
+permissions:
+  contents: read
+jobs:
+  linux-allocation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Confirm Linux hosted-runner allocation
+        shell: bash
+        run: echo "RUNNER_ALLOCATED Linux"
+  windows-allocation:
+    runs-on: windows-latest
+    timeout-minutes: 3
+    steps:
+      - name: Confirm Windows hosted-runner allocation
+        shell: pwsh
+        run: Write-Host 'RUNNER_ALLOCATED Windows'
