@@ -555,41 +555,59 @@
  }
  function run(){beginDay();}
  function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
- async function importSave(file){if(!file)return;try{if(file.size>250000)throw Error('セーブファイルが大きすぎます。');const raw=JSON.parse(await file.text());if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');
-    const next=E.validate(raw.state);
-    if(next.liveSession)L.validate(next,next.liveSession);
-    // Validate every imported component before pausing the current game, writing a
-    // backup, or replacing in-memory state. Invalid clocks must be non-destructive.
-    const nextClock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
-    if(!confirm('保存済みの進行状況に置き換えますか？'))return;
-    if(!recoveryBlocked&&localStorage.getItem(KEY)){
-      // Keep the previous game and its active clock together. A stale clock
-      // from an older reset would otherwise make a valid backup unrestorable.
-      const oldBackup=localStorage.getItem(BACKUP_KEY);
-      const oldBackupTime=localStorage.getItem(BACKUP_TIME_KEY);
-      const timeRaw=localStorage.getItem(TIME_KEY);
-      try{
-        localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
-        if(timeRaw!==null)localStorage.setItem(BACKUP_TIME_KEY,timeRaw);
-        else localStorage.removeItem(BACKUP_TIME_KEY);
-      }catch(error){
-        // Best-effort rollback of both backup keys; do not touch the active save.
-        try{
-          if(oldBackup!==null)localStorage.setItem(BACKUP_KEY,oldBackup);
-          else localStorage.removeItem(BACKUP_KEY);
-          if(oldBackupTime!==null)localStorage.setItem(BACKUP_TIME_KEY,oldBackupTime);
-          else localStorage.removeItem(BACKUP_TIME_KEY);
-        }catch(_restoreError){}
-        throw error;
-      }
+ async function importSave(file){
+  if(!file)return;
+  try{
+   if(file.size>250000)throw Error('セーブファイルが大きすぎます。');
+   const raw=JSON.parse(await file.text());
+   if(raw.schema!==E.VERSION)throw Error('対応しないセーブ形式です。');
+   const next=E.validate(raw.state);
+   if(next.liveSession)L.validate(next,next.liveSession);
+   let nextClock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
+   if(next.liveSession){
+    const floor=Math.round((next.liveSession.minute-T.OPEN_MINUTES)/
+       (T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
+    if(nextClock.elapsedMs<floor)nextClock={...nextClock,elapsedMs:floor,paused:true};
+   }
+   if(!confirm('保存済みの進行状況に置き換えますか？'))return;
+
+   // Stage both active records and their old-game backups before modifying
+   // any in-memory state. Roll back all written keys if a write is refused.
+   const activeSave=localStorage.getItem(KEY);
+   const activeTime=localStorage.getItem(TIME_KEY);
+   const previousBackup=localStorage.getItem(BACKUP_KEY);
+   const previousBackupTime=localStorage.getItem(BACKUP_TIME_KEY);
+   const writes=[];
+   if(!recoveryBlocked&&activeSave!==null){
+    writes.push([BACKUP_KEY,JSON.stringify(state)]);
+    writes.push([BACKUP_TIME_KEY,activeTime]);
+   }
+   writes.push([KEY,JSON.stringify(next)]);
+   writes.push([TIME_KEY,JSON.stringify(nextClock)]);
+   const originals=new Map([[KEY,activeSave],[TIME_KEY,activeTime],
+    [BACKUP_KEY,previousBackup],[BACKUP_TIME_KEY,previousBackupTime]]);
+   let written=0;
+   try{
+    for(const [key,value] of writes){
+     if(value===null)localStorage.removeItem(key);
+     else localStorage.setItem(key,value);
+     written++;
     }
-    stopClock();state=next;clearStockDrafts();clock=nextClock;
-    if(live()){
-      const floor=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
-      if(clock.elapsedMs<floor)clock={...clock,elapsedMs:floor,paused:true};
-    }
-    saveClock();onboardingRequired=false;recoveryBlocked=false;originalRaw=null;lastReport=next.lastReport??null;repayNotice='';
-    notice='保存内容を読み込みました。';persist();refresh();}catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}}
+   }catch(error){
+    for(let i=written-1;i>=0;i--)try{
+     const key=writes[i][0],value=originals.get(key);
+     if(value===null)localStorage.removeItem(key);
+     else localStorage.setItem(key,value);
+    }catch(_rollbackError){}
+    throw Error('セーブの保存に失敗しました。元のプレイは変更していません。');
+   }
+   if(clockTimer!==null){clearInterval(clockTimer);clockTimer=null;}
+   state=next;clock=nextClock;clearStockDrafts();
+   onboardingRequired=false;recoveryBlocked=false;originalRaw=null;
+   lastReport=next.lastReport??null;repayNotice='';
+   notice='保存内容を読み込みました。';refresh();
+  }catch(error){alert('セーブの読み込みに失敗しました：'+error.message);}
+ }
  function startWithMode(){
    if(!onboardingRequired||recoveryBlocked)return;
    const selected=$('openingModeHard').checked?'hard':$('openingModeNormal').checked?'normal':'easy';
