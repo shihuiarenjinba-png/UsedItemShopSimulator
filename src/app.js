@@ -562,7 +562,27 @@
     // backup, or replacing in-memory state. Invalid clocks must be non-destructive.
     const nextClock=raw.clock?T.validate(raw.clock,next.day):T.initial(next.day);
     if(!confirm('保存済みの進行状況に置き換えますか？'))return;
-    if(!recoveryBlocked&&localStorage.getItem(KEY))localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
+    if(!recoveryBlocked&&localStorage.getItem(KEY)){
+      // Keep the previous game and its active clock together. A stale clock
+      // from an older reset would otherwise make a valid backup unrestorable.
+      const oldBackup=localStorage.getItem(BACKUP_KEY);
+      const oldBackupTime=localStorage.getItem(BACKUP_TIME_KEY);
+      const timeRaw=localStorage.getItem(TIME_KEY);
+      try{
+        localStorage.setItem(BACKUP_KEY,JSON.stringify(state));
+        if(timeRaw!==null)localStorage.setItem(BACKUP_TIME_KEY,timeRaw);
+        else localStorage.removeItem(BACKUP_TIME_KEY);
+      }catch(error){
+        // Best-effort rollback of both backup keys; do not touch the active save.
+        try{
+          if(oldBackup!==null)localStorage.setItem(BACKUP_KEY,oldBackup);
+          else localStorage.removeItem(BACKUP_KEY);
+          if(oldBackupTime!==null)localStorage.setItem(BACKUP_TIME_KEY,oldBackupTime);
+          else localStorage.removeItem(BACKUP_TIME_KEY);
+        }catch(_restoreError){}
+        throw error;
+      }
+    }
     stopClock();state=next;clearStockDrafts();clock=nextClock;
     if(live()){
       const floor=Math.round((live().minute-T.OPEN_MINUTES)/(T.CLOSE_MINUTES-T.OPEN_MINUTES)*T.DAY_MS);
