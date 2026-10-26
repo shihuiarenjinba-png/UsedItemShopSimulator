@@ -236,3 +236,21 @@ test("valid save import restores its daily report and backs up the previous save
  assert.match(ui.nodes.report.textContent,/今日の売上/,"report must remain visible after import");
  assert.doesNotMatch(ui.nodes.report.textContent,/営業後に、売れた品物/);
 });
+test("importing a save keeps the old clock paired with its original backup",async()=>{
+ const ui=boot(undefined,{mode:"normal"});
+ ui.nodes.openBtn.click();
+ ui.simulate(5000);
+ const original=ui.storage.get(ui.key);
+ const activeTime=ui.storage.get("used-item-shop:active-time:v1");
+ assert.ok(JSON.parse(activeTime).elapsedMs>0,"game clock should advance before import");
+ const other=E.startGame("hard",30);
+ await uploadJson(ui,{schema:E.VERSION,state:other,clock:T.initial(other.day)});
+ assert.equal(ui.storage.get("used-item-shop:previous-run:v1"),original);
+ assert.equal(ui.storage.get("used-item-shop:previous-time:v1"),activeTime,
+   "backed-up game must carry its matching in-progress clock");
+ ui.nodes.restoreBtn.click();
+ assert.equal(ui.storage.get(ui.key),original,"restoring should recover the prior game");
+ const restoredClock=JSON.parse(ui.storage.get("used-item-shop:active-time:v1"));
+ assert.equal(restoredClock.elapsedMs,JSON.parse(activeTime).elapsedMs);
+ assert.equal(restoredClock.paused,true,"clock should pause across reload");
+});
