@@ -37,6 +37,8 @@ const output=path.resolve("unified-ui-evidence");fs.mkdirSync(output,{recursive:
     "backup restoration must return to gameplay");
   const recoveredSave=await p.evaluate(()=>JSON.parse(localStorage.getItem("used-item-shop:save:v1")));
   assert.deepEqual(recoveredSave,completedSave,"restore must recover the full original save");
+  await p.locator('[data-shop-tab="day"]').click();
+  assert.equal(await p.locator("#report").isVisible(),true,"saved daily result must be viewable");
   assert.equal(await p.locator("#report").innerText(),beforeRestoreReport,
     "restore must re-render the same saved daily result");
   const title=await p.title();assert.ok(title.length>4,"missing game window title");
