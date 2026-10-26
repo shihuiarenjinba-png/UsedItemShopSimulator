@@ -56,3 +56,9 @@
 - 次の管理者確認（リポジトリを公開化しないまま）: GitHub Settings → Billing & licensing → Usage / BudgetsでActions利用枠・予算停止・支払方法の状態を閲覧し、対象Private repositoryのSettings → Actions → GeneralとRunner設定を閲覧する。**この資料は支払い方法登録・課金上限増額を指示または承認するものではない**。
 - 次の手段の優先順位: (1) 非公開のままActions実行制限を管理者が解決、(2) 許可された信頼できるWindows self-hosted runnerが利用可能ならその安全運用を別途承認、(3) ローカルWindowsでのMSIX作成は「GitHubで生成」という現在の分担要件を満たさないため、変更承認なしに代替引継ぎ扱いしない。
 - 根因が解消したら既存MSIX workflows（現在のWork HEADから起動するよう設定済み）で再ビルドし、ジョブSteps PASS・Artifact実体・Package SHAを確認する。それまでは5製品のMSIXを**未生成**として維持。
+
+## 6. 24案件有料版MSIXコードの追補検査
+- 独立Identityの正式値が未登録でも、パッケージ作成前にテストできる項目を強化。MSIX Manifestの `Identity/@Name`、`Publisher`、`Version` だけでなく、`Properties/DisplayName`、`PublisherDisplayName`、`VisualElements/@DisplayName` を正規の有料商品値と比較するようにした。
+- 不一致を見逃さない単体テストを追加し、独立した24案件の実ソース＋全ゲームブラウザQAが [Run 40261196152](https://github.com/shihuiarenjinba-png/Night-Office-Auditor-2/actions/runs/40261196152) （HEAD `21df42d56328701ee52723beb9dede4a6b507fef`）の両JobでPASS。
+- [MSIX Gate Run 40261196108](https://github.com/shihuiarenjinba-png/Night-Office-Auditor-2/actions/runs/40261196108) はソーステストPASS → 正式Identity未登録判定 → `MSIX_BUILD_HOLD.json` artifactを保存 → MSIX生成のみ意図的にFAIL。**MSIXを作ったとの主張はしない**。
+- 24案件のBuild/Manifest照合コードは未確定Identityを仮入力して実際のMSIX生成を行っていない。GitHub Runner上でのパッケージ生成/署名/インストール試験はIdentity確定後に未検証として残す。
